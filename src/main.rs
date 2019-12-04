@@ -47,6 +47,7 @@ mod euclid;
 
 mod aoc1;
 mod aoc3;
+mod aoc4;
 
 fn main() {
     println!(); // split build output from runtime output
@@ -59,6 +60,7 @@ fn main() {
     match day {
         1 => aoc1::advent(),
         3 => aoc3::advent(),
+        4 => aoc4::advent(),
         x => {
             eprintln!("Day {} hasn't happened yet.", x);
             ::std::process::exit(1);
