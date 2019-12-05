@@ -44,8 +44,10 @@ macro_rules! parameterized_test {
 
 mod error;
 mod euclid;
+mod intcode;
 
 mod aoc1;
+mod aoc2;
 mod aoc3;
 mod aoc4;
 
@@ -59,6 +61,7 @@ fn main() {
     let day: u32 = args[1].parse().expect("Should be a natural number");
     match day {
         1 => aoc1::advent(),
+        2 => aoc2::advent(),
         3 => aoc3::advent(),
         4 => aoc4::advent(),
         x => {
