@@ -30,6 +30,8 @@ macro_rules! parameterized_test {
                             )*
                         }}}}}}}
 
+mod intcode;
+
 mod aoc1;
 mod aoc2;
 
