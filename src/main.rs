@@ -7,7 +7,7 @@ use std::env;
 
 macro_rules! regex_captures {
   ($re:tt, $s:expr) => {
-    $re.captures($s).ok_or_else(|| format!("'{}' did not match '{}'", $s, $re.as_str()))
+    $re.captures($s).ok_or_else(|| format!("`{}` did not match `{}`", $s, $re.as_str()))
   };
 }
 
@@ -50,6 +50,7 @@ mod aoc1;
 mod aoc2;
 mod aoc3;
 mod aoc4;
+mod aoc6;
 
 fn main() {
     println!(); // split build output from runtime output
@@ -64,6 +65,7 @@ fn main() {
         2 => aoc2::advent(),
         3 => aoc3::advent(),
         4 => aoc4::advent(),
+        6 => aoc6::advent(),
         x => {
             eprintln!("Day {} hasn't happened yet.", x);
             ::std::process::exit(1);
