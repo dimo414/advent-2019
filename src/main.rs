@@ -2,6 +2,7 @@
 //#![ allow( dead_code, unused_imports, unused_variables ) ]
 #[macro_use] extern crate lazy_static;
 extern crate regex;
+extern crate permutohedron;
 
 use std::env;
 
@@ -52,6 +53,7 @@ mod aoc3;
 mod aoc4;
 mod aoc5;
 mod aoc6;
+mod aoc7;
 
 fn main() {
     println!(); // split build output from runtime output
@@ -68,6 +70,7 @@ fn main() {
         4 => aoc4::advent(),
         5 => aoc5::advent(),
         6 => aoc6::advent(),
+        7 => aoc7::advent(),
         x => {
             eprintln!("Day {} hasn't happened yet.", x);
             ::std::process::exit(1);
