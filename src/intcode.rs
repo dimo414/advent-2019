@@ -1,11 +1,10 @@
-#![ allow( dead_code ) ]
 use std::fmt;
 use std::fmt::Write;
 use std::str::FromStr;
-use std::collections::VecDeque;
+use std::collections::{VecDeque, BTreeMap};
 
-#[derive(Clone, Copy, Debug)]
-enum Opcode {
+#[derive(Clone, Copy, Debug, Ord, PartialOrd, Eq, PartialEq)]
+pub enum Opcode {
     ADD,
     MUL,
     INPUT,
@@ -49,21 +48,13 @@ impl Opcode {
         }
     }
 
-    fn parameters(&self) -> i32 {
+    fn parameters(&self) -> usize {
         use Opcode::*;
         match *self {
             EXIT => 0,
             INPUT | OUTPUT => 1,
             JIT | JIF => 2,
             ADD | MUL | LT | EQ => 3,
-        }
-    }
-
-    fn pointer_advance(&self) -> usize {
-        match *self {
-            // TODO use this to configure how the pointer advances; right now it causes a hang
-            //JIT | JIF => 0,
-            _ => 1 + self.parameters() as usize,
         }
     }
 
@@ -89,13 +80,14 @@ impl fmt::Display for Opcode {
 pub struct Machine {
     state: Vec<i32>,
     pointer: usize,
+    pointer_moved: bool,
     input: VecDeque<i32>,
     output: VecDeque<i32>,
 }
 
 impl Machine {
     pub fn new(state: &[i32]) -> Machine {
-        Machine { state: state.to_vec(), pointer: 0, input: VecDeque::new(), output: VecDeque::new() }
+        Machine { state: state.to_vec(), pointer: 0, pointer_moved: false, input: VecDeque::new(), output: VecDeque::new() }
     }
 
     pub fn send_input(&mut self, input: i32) {
@@ -114,21 +106,26 @@ impl Machine {
         self.state[address] = value;
     }
 
+    #[cfg(test)]
     fn set_pointer(&mut self, pointer: usize) {
         self.pointer = pointer;
     }
 
     pub fn run(&mut self) {
-        self.debug();
+        self.debug(&mut NoopDebugger);
     }
 
-    pub fn debug(&mut self) {
+    pub fn debug(&mut self, debugger: &mut impl Debugger) {
         loop {
             let code = self.state[self.pointer];
             let opcode = Opcode::lookup(code)
                 .expect(&format!("Invalid opcode {} at {}", self.state[self.pointer], self.pointer));
-            let params = self.state[self.pointer+1..self.pointer+1+opcode.parameters() as usize].to_vec();
+            let params = self.state[self.pointer+1..self.pointer+1+opcode.parameters()].to_vec();
             let modes = opcode.modes(code);
+
+            let proceed = debugger.on_exec(self.pointer, opcode, &params, &modes, &self.state);
+            if !proceed { break; }
+
             match opcode {
                 Opcode::ADD => self.add(&params, &modes),
                 Opcode::MUL => self.mul(&params, &modes),
@@ -138,10 +135,15 @@ impl Machine {
                 Opcode::JIF => self.jump_if_false(&params, &modes),
                 Opcode::LT => self.less_than(&params, &modes),
                 Opcode::EQ => self.equals(&params, &modes),
-                Opcode::EXIT => return,
+                Opcode::EXIT => break,
             }
-            self.pointer += opcode.pointer_advance();
+
+            if ! self.pointer_moved {
+                self.pointer += 1 + opcode.parameters();
+            }
+            self.pointer_moved = false;
         }
+        debugger.on_halt(self.pointer);
     }
 
     fn read(&mut self, params: &[i32], modes: &[bool], index: usize) -> i32 {
@@ -155,6 +157,11 @@ impl Machine {
     fn write(&mut self, params: &[i32], modes: &[bool], index: usize, value: i32) {
         assert!(!modes[index]); // can't write-to-value...
         self.state[params[index] as usize] = value;
+    }
+
+    fn move_pointer(&mut self, new_pointer: usize) {
+        self.pointer = new_pointer;
+        self.pointer_moved = true;
     }
 
     fn add(&mut self, params: &[i32], modes: &[bool]) {
@@ -181,13 +188,15 @@ impl Machine {
 
     fn jump_if_true(&mut self, params: &[i32], modes: &[bool]) {
         if self.read(params, modes, 0) != 0 {
-            self.pointer = self.read(params, modes, 1) as usize - (1 + params.len());
+            let dest = self.read(params, modes, 1) as usize;
+            self.move_pointer(dest);
         }
     }
 
     fn jump_if_false(&mut self, params: &[i32], modes: &[bool]) {
         if self.read(params, modes, 0) == 0 {
-            self.pointer = self.read(params, modes, 1) as usize - (1 + params.len());
+            let dest = self.read(params, modes, 1) as usize;
+            self.move_pointer(dest);
         }
     }
 
@@ -257,6 +266,91 @@ impl fmt::Display for Machine {
         }
 
         write!(f, "{}", out)
+    }
+}
+
+pub trait Debugger {
+    fn on_exec(&mut self, pointer: usize, opcode: Opcode, params: &[i32], modes: &[bool], state: &[i32]) -> bool;
+
+    fn on_halt(&mut self, pointer: usize) { let _=pointer; }
+}
+
+struct NoopDebugger;
+impl Debugger for NoopDebugger {
+    fn on_exec(&mut self, _: usize, _: Opcode, _: &[i32], _: &[bool], _: &[i32]) -> bool { true }
+}
+
+pub struct ExecCounter {
+    counts: BTreeMap<Opcode, usize>,
+}
+
+#[allow(dead_code)]
+impl ExecCounter {
+    pub fn new() -> ExecCounter {
+        ExecCounter { counts: BTreeMap::new() }
+    }
+
+    pub fn counts(&self) -> &BTreeMap<Opcode, usize> {
+        &self.counts
+    }
+
+    pub fn total(&self) -> usize {
+        self.counts.values().sum()
+    }
+}
+
+impl Debugger for ExecCounter {
+    fn on_exec(&mut self, _: usize, opcode: Opcode, _: &[i32], _: &[bool], _: &[i32]) -> bool {
+        let count = self.counts.entry(opcode).or_insert(0);
+        *count += 1;
+        true
+    }
+
+    fn on_halt(&mut self, _: usize) {
+        self.counts.entry(Opcode::EXIT).or_insert(0);
+    }
+}
+
+pub struct ExecLogger {
+    steps: usize,
+    halt_after: usize,
+    should_log: Box<Fn(Opcode, usize) -> bool>,
+}
+
+#[allow(dead_code)]
+impl ExecLogger {
+    pub fn new(halt_after: usize, should_log: Box<Fn(Opcode, usize) -> bool>) -> ExecLogger {
+        ExecLogger{ steps: 0, halt_after, should_log }
+    }
+
+    pub fn halt_after(halt_after: usize) -> ExecLogger {
+        ExecLogger::new(halt_after, Box::new(|_, _| true))
+    }
+}
+
+impl Debugger for ExecLogger {
+    fn on_exec(&mut self, pointer: usize, opcode: Opcode, params: &[i32], modes: &[bool], state: &[i32]) -> bool {
+        self.steps += 1;
+        if (self.should_log)(opcode, self.steps) {
+            let mut out = String::new();
+
+            write!(&mut out, "{:5}:{:<5} {:>10}", pointer, self.steps, opcode.to_string()).unwrap();
+            for i in {0..params.len()} {
+                let param = if modes[i] {
+                    format!("{}", params[i])
+                } else {
+                    format!("{}[{}]", params[i], state[params[i] as usize])
+                };
+                write!(&mut out, "\t{:>14}", param).unwrap();
+            }
+
+            println!("{}", out);
+        }
+        self.steps <= self.halt_after
+    }
+
+    fn on_halt(&mut self, ip: usize) {
+        println!("HALT: {}", ip);
     }
 }
 
