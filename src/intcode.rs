@@ -13,11 +13,12 @@ pub enum Opcode {
     JIF,
     LT,
     EQ,
+    RELBASE,
     EXIT,
 }
 
 impl Opcode {
-    fn code(&self) -> i32 {
+    fn code(&self) -> i64 {
         use Opcode::*;
         match *self {
             ADD => 1,
@@ -28,11 +29,12 @@ impl Opcode {
             JIF => 6,
             LT => 7,
             EQ => 8,
+            RELBASE => 9,
             EXIT => 99,
         }
     }
 
-    fn lookup(code: i32) -> Option<Opcode> {
+    fn lookup(code: i64) -> Option<Opcode> {
         use Opcode::*;
         match code % 100 {
             1 => Some(ADD),
@@ -43,6 +45,7 @@ impl Opcode {
             6 => Some(JIF),
             7 => Some(LT),
             8 => Some(EQ),
+            9 => Some(RELBASE),
             99 => Some(EXIT),
             _ => None,
         }
@@ -52,22 +55,10 @@ impl Opcode {
         use Opcode::*;
         match *self {
             EXIT => 0,
-            INPUT | OUTPUT => 1,
+            INPUT | OUTPUT | RELBASE => 1,
             JIT | JIF => 2,
             ADD | MUL | LT | EQ => 3,
         }
-    }
-
-    fn modes(&self, code: i32) -> Vec<bool> {
-        let mut modes = code / 100;
-        let mut ret = Vec::new();
-        for _ in {0..self.parameters()} {
-            let mode = modes % 10;
-            assert!(mode == 0 || mode == 1);
-            ret.push(mode == 1);
-            modes /= 10;
-        }
-        ret
     }
 }
 
@@ -77,32 +68,40 @@ impl fmt::Display for Opcode {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+pub enum Address {
+    Reference(usize),
+    Immediate(i64),
+    Relative(isize),
+}
+
 pub struct Machine {
-    state: Vec<i32>,
+    state: Vec<i64>,
     pointer: usize,
     pointer_moved: bool,
-    input: VecDeque<i32>,
-    output: VecDeque<i32>,
+    relateive_base: isize,
+    input: VecDeque<i64>,
+    output: VecDeque<i64>,
 }
 
 impl Machine {
-    pub fn new(state: &[i32]) -> Machine {
-        Machine { state: state.to_vec(), pointer: 0, pointer_moved: false, input: VecDeque::new(), output: VecDeque::new() }
+    pub fn new(state: &[i64]) -> Machine {
+        Machine { state: state.to_vec(), pointer: 0, pointer_moved: false, relateive_base: 0, input: VecDeque::new(), output: VecDeque::new() }
     }
 
-    pub fn send_input(&mut self, input: i32) {
+    pub fn send_input(&mut self, input: i64) {
         self.input.push_back(input);
     }
 
-    pub fn read_output(&mut self) -> Vec<i32> {
+    pub fn read_output(&mut self) -> Vec<i64> {
         self.output.drain(..).collect()
     }
 
-    pub fn read_state(&self, address: usize) -> i32 {
+    pub fn read_state(&self, address: usize) -> i64 {
         self.state[address]
     }
 
-    pub fn set_state(&mut self, address: usize, value: i32) {
+    pub fn set_state(&mut self, address: usize, value: i64) {
         self.state[address] = value;
     }
 
@@ -120,21 +119,21 @@ impl Machine {
             let code = self.state[self.pointer];
             let opcode = Opcode::lookup(code)
                 .expect(&format!("Invalid opcode {} at {}", self.state[self.pointer], self.pointer));
-            let params = self.state[self.pointer+1..self.pointer+1+opcode.parameters()].to_vec();
-            let modes = opcode.modes(code);
+            let params = self.compute_params(opcode, code / 100);
 
-            let proceed = debugger.on_exec(self.pointer, opcode, &params, &modes, &self.state);
+            let proceed = debugger.on_exec(self.pointer, opcode, &params, &self.state);
             if !proceed { break; }
 
             match opcode {
-                Opcode::ADD => self.add(&params, &modes),
-                Opcode::MUL => self.mul(&params, &modes),
-                Opcode::INPUT => self.input(&params, &modes),
-                Opcode::OUTPUT => self.output(&params, &modes),
-                Opcode::JIT => self.jump_if_true(&params, &modes),
-                Opcode::JIF => self.jump_if_false(&params, &modes),
-                Opcode::LT => self.less_than(&params, &modes),
-                Opcode::EQ => self.equals(&params, &modes),
+                Opcode::ADD => self.add(&params),
+                Opcode::MUL => self.mul(&params),
+                Opcode::INPUT => self.input(&params),
+                Opcode::OUTPUT => self.output(&params),
+                Opcode::JIT => self.jump_if_true(&params),
+                Opcode::JIF => self.jump_if_false(&params),
+                Opcode::LT => self.less_than(&params),
+                Opcode::EQ => self.equals(&params),
+                Opcode::RELBASE => self.update_relative_base(&params),
                 Opcode::EXIT => break,
             }
 
@@ -146,17 +145,53 @@ impl Machine {
         debugger.on_halt(self.pointer);
     }
 
-    fn read(&mut self, params: &[i32], modes: &[bool], index: usize) -> i32 {
-        if modes[index] {
-            params[index]
-        } else {
-            self.state[params[index] as usize]
+    fn compute_params(&self, opcode: Opcode, modes_mask: i64) -> Vec<Address> {
+        let params = self.state[self.pointer+1..self.pointer+1+opcode.parameters()].to_vec();
+        let mut modes_mask = modes_mask;
+
+        let mut ret = Vec::new();
+        for i in 0..opcode.parameters() {
+            let address = match modes_mask % 10 {
+                0 => Address::Reference(params[i] as usize),
+                1 => Address::Immediate(params[i]),
+                2 => Address::Relative(params[i] as isize),
+                _ => panic!(format!("Invalid mode: {}", modes_mask % 10)),
+            };
+            ret.push(address);
+            modes_mask /= 10;
+        }
+        ret
+    }
+
+    fn expand_memory(&mut self, index: usize) {
+        // TODO optimize this
+        while self.state.len() <= index {
+            self.state.push(0);
         }
     }
 
-    fn write(&mut self, params: &[i32], modes: &[bool], index: usize, value: i32) {
-        assert!(!modes[index]); // can't write-to-value...
-        self.state[params[index] as usize] = value;
+    fn read(&mut self, params: &[Address], index: usize) -> i64 {
+        match params[index] {
+            Address::Reference(a) => {
+                self.expand_memory(a); self.state[a]
+            },
+            Address::Immediate(v) => v,
+            Address::Relative(r) => {
+                let address = (self.relateive_base + r) as usize;
+                self.expand_memory(address);
+                self.state[address]
+            },
+        }
+    }
+
+    fn write(&mut self, params: &[Address], index: usize, value: i64) {
+        let address = match params[index] {
+            Address::Reference(a) => a,
+            Address::Immediate(_) => panic!("Can't write in immediate mode"),
+            Address::Relative(r) => (self.relateive_base + r) as usize,
+        };
+        self.expand_memory(address);
+        self.state[address] = value;
     }
 
     fn move_pointer(&mut self, new_pointer: usize) {
@@ -164,58 +199,63 @@ impl Machine {
         self.pointer_moved = true;
     }
 
-    fn add(&mut self, params: &[i32], modes: &[bool]) {
-        let a = self.read(params, modes, 0);
-        let b = self.read(params, modes, 1);
-        self.write(params, modes, 2, a + b);
+    fn add(&mut self, params: &[Address]) {
+        let a = self.read(params, 0);
+        let b = self.read(params, 1);
+        self.write(params, 2, a + b);
     }
 
-    fn mul(&mut self, params: &[i32], modes: &[bool]) {
-        let a = self.read(params, modes, 0);
-        let b = self.read(params, modes, 1);
-        self.write(params, modes, 2, a * b);
+    fn mul(&mut self, params: &[Address]) {
+        let a = self.read(params, 0);
+        let b = self.read(params, 1);
+        self.write(params, 2, a * b);
     }
 
-    fn input(&mut self, params: &[i32], modes: &[bool]) {
+    fn input(&mut self, params: &[Address]) {
         let input = self.input.pop_front().expect("No input left");
-        self.write(params, modes, 0, input);
+        self.write(params, 0, input);
     }
 
-    fn output(&mut self, params: &[i32], modes: &[bool]) {
-        let value = self.read(params, modes, 0);
+    fn output(&mut self, params: &[Address]) {
+        let value = self.read(params, 0);
         self.output.push_back(value);
     }
 
-    fn jump_if_true(&mut self, params: &[i32], modes: &[bool]) {
-        if self.read(params, modes, 0) != 0 {
-            let dest = self.read(params, modes, 1) as usize;
+    fn jump_if_true(&mut self, params: &[Address]) {
+        if self.read(params, 0) != 0 {
+            let dest = self.read(params, 1) as usize;
             self.move_pointer(dest);
         }
     }
 
-    fn jump_if_false(&mut self, params: &[i32], modes: &[bool]) {
-        if self.read(params, modes, 0) == 0 {
-            let dest = self.read(params, modes, 1) as usize;
+    fn jump_if_false(&mut self, params: &[Address]) {
+        if self.read(params, 0) == 0 {
+            let dest = self.read(params, 1) as usize;
             self.move_pointer(dest);
         }
     }
 
-    fn less_than(&mut self, params: &[i32], modes: &[bool]) {
-        let value = if self.read(params, modes, 0) < self.read(params, modes, 1) {
+    fn less_than(&mut self, params: &[Address]) {
+        let value = if self.read(params, 0) < self.read(params, 1) {
             1
         } else {
             0
         };
-        self.write(params, modes, 2, value);
+        self.write(params, 2, value);
     }
 
-    fn equals(&mut self, params: &[i32], modes: &[bool]) {
-        let value = if self.read(params, modes, 0) == self.read(params, modes, 1) {
+    fn equals(&mut self, params: &[Address]) {
+        let value = if self.read(params, 0) == self.read(params, 1) {
             1
         } else {
             0
         };
-        self.write(params, modes, 2, value);
+        self.write(params, 2, value);
+    }
+
+    fn update_relative_base(&mut self, params: &[Address]) {
+        let value = self.read(params, 0) + self.relateive_base as i64;
+        self.relateive_base = value as isize;
     }
 }
 
@@ -223,7 +263,7 @@ impl FromStr for Machine {
     type Err = std::num::ParseIntError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let v = s.split(",").map(|n| n.parse::<i32>()).collect::<Result<Vec<i32>, _>>()?;
+        let v = s.split(",").map(|n| n.parse::<i64>()).collect::<Result<Vec<i64>, _>>()?;
         Ok(Machine::new(&v))
     }
 }
@@ -270,14 +310,14 @@ impl fmt::Display for Machine {
 }
 
 pub trait Debugger {
-    fn on_exec(&mut self, pointer: usize, opcode: Opcode, params: &[i32], modes: &[bool], state: &[i32]) -> bool;
+    fn on_exec(&mut self, pointer: usize, opcode: Opcode, params: &[Address], state: &[i64]) -> bool;
 
     fn on_halt(&mut self, pointer: usize) { let _=pointer; }
 }
 
 struct NoopDebugger;
 impl Debugger for NoopDebugger {
-    fn on_exec(&mut self, _: usize, _: Opcode, _: &[i32], _: &[bool], _: &[i32]) -> bool { true }
+    fn on_exec(&mut self, _: usize, _: Opcode, _: &[Address], _: &[i64]) -> bool { true }
 }
 
 pub struct ExecCounter {
@@ -300,7 +340,7 @@ impl ExecCounter {
 }
 
 impl Debugger for ExecCounter {
-    fn on_exec(&mut self, _: usize, opcode: Opcode, _: &[i32], _: &[bool], _: &[i32]) -> bool {
+    fn on_exec(&mut self, _: usize, opcode: Opcode, _: &[Address], _: &[i64]) -> bool {
         let count = self.counts.entry(opcode).or_insert(0);
         *count += 1;
         true
@@ -329,19 +369,19 @@ impl ExecLogger {
 }
 
 impl Debugger for ExecLogger {
-    fn on_exec(&mut self, pointer: usize, opcode: Opcode, params: &[i32], modes: &[bool], state: &[i32]) -> bool {
+    fn on_exec(&mut self, pointer: usize, opcode: Opcode, params: &[Address], state: &[i64]) -> bool {
         self.steps += 1;
         if (self.should_log)(opcode, self.steps) {
             let mut out = String::new();
 
             write!(&mut out, "{:5}:{:<5} {:>10}", pointer, self.steps, opcode.to_string()).unwrap();
-            for i in {0..params.len()} {
-                let param = if modes[i] {
-                    format!("{}", params[i])
-                } else {
-                    format!("{}[{}]", params[i], state[params[i] as usize])
+            for param in params {
+                let formatted = match param {
+                    Address::Reference(a) => format!("{}[{}]", a, state[*a]),
+                    Address::Immediate(v) => format!("{}", v),
+                    Address::Relative(r) => format!("R{}[??]", r), // TODO access relative base
                 };
-                write!(&mut out, "\t{:>14}", param).unwrap();
+                write!(&mut out, "\t{:>14}", formatted).unwrap();
             }
 
             println!("{}", out);
@@ -434,6 +474,18 @@ mod tests {
         // From Day 5
         a: "3,12,6,12,15,1,13,14,13,4,13,99,-1,0,1,9",
         b: "3,3,1105,-1,9,1101,0,0,12,4,12,99,1",
+    }
+
+    parameterized_test!{ relateive_mode, (program, expected), {
+        let mut machine: Machine = program.parse().unwrap();
+        machine.run();
+        assert_eq!(machine.read_output(), expected);
+    }}
+    relateive_mode!{
+        // From Day 9
+        quine: ("109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99", vec!(109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99)),
+        large_add: ("1102,34915192,34915192,7,4,7,99,0", vec!(1219070632396864)),
+        large_print: ("104,1125899906842624,99", vec!(1125899906842624i64)),
     }
 
 

@@ -21,7 +21,7 @@ fn read_data() -> String {
     fs::read_to_string("data/day2.txt").expect("Cannot open").trim().into()
 }
 
-fn run_program(input: &str, noun: i32, verb: i32) -> i32 {
+fn run_program(input: &str, noun: i64, verb: i64) -> i64 {
     let mut machine: Machine = input.parse().expect("Invalid");
     machine.set_state(1, noun);
     machine.set_state(2, verb);

@@ -1,5 +1,5 @@
 use std::fs;
-use crate::intcode::{Debugger, Machine, Opcode};
+use crate::intcode::{Debugger, Machine, Opcode, Address};
 use permutohedron::LexicalPermutation;
 
 pub fn advent() {
@@ -14,7 +14,7 @@ fn read_data() -> String {
     fs::read_to_string("data/day7.txt").expect("Cannot open").trim().into()
 }
 
-fn compute_signal(program: &str, sequence: &[i32]) -> i32 {
+fn compute_signal(program: &str, sequence: &[i64]) -> i64 {
     let mut last_output = 0;
     for &phase in sequence {
         let mut machine: Machine = program.parse().expect("Invalid");
@@ -28,7 +28,7 @@ fn compute_signal(program: &str, sequence: &[i32]) -> i32 {
     last_output
 }
 
-fn compute_feedback_signal(program: &str, sequence: &[i32]) -> i32 {
+fn compute_feedback_signal(program: &str, sequence: &[i64]) -> i64 {
     let mut machines: Vec<Machine> = vec!(
         program.parse().unwrap(),
         program.parse().unwrap(),
@@ -52,7 +52,7 @@ fn compute_feedback_signal(program: &str, sequence: &[i32]) -> i32 {
     last_output
 }
 
-fn find_maximum_signal(program: &str) -> (Vec<i32>, i32) {
+fn find_maximum_signal(program: &str) -> (Vec<i64>, i64) {
     let mut sequence = [0, 1, 2, 3, 4];
     let mut max = (sequence.to_vec(), 0);
     loop {
@@ -67,7 +67,7 @@ fn find_maximum_signal(program: &str) -> (Vec<i32>, i32) {
     max
 }
 
-fn find_maximum_feedback_signal(program: &str) -> (Vec<i32>, i32) {
+fn find_maximum_feedback_signal(program: &str) -> (Vec<i64>, i64) {
     let mut sequence = [5, 6, 7, 8, 9];
     let mut max = (sequence.to_vec(), 0);
     loop {
@@ -94,7 +94,7 @@ impl BreakOnOutput {
 }
 
 impl Debugger for BreakOnOutput {
-    fn on_exec(&mut self, _: usize, opcode: Opcode, _: &[i32], _: &[bool], _: &[i32]) -> bool {
+    fn on_exec(&mut self, _: usize, opcode: Opcode, _: &[Address], _: &[i64]) -> bool {
         if self.seen_output && opcode != Opcode::EXIT {
             self.seen_output = false;
             return false;
