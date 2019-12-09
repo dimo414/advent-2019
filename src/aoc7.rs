@@ -94,7 +94,7 @@ impl BreakOnOutput {
 }
 
 impl Debugger for BreakOnOutput {
-    fn on_exec(&mut self, _: usize, opcode: Opcode, _: &[Address], _: &[i64]) -> bool {
+    fn on_exec(&mut self, opcode: Opcode, _: &[Address], _: &[i64], _: usize, _: isize) -> bool {
         if self.seen_output && opcode != Opcode::EXIT {
             self.seen_output = false;
             return false;

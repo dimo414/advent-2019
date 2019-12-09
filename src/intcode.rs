@@ -64,7 +64,8 @@ impl Opcode {
 
 impl fmt::Display for Opcode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}({})", self, self.code())
+        // https://github.com/rust-lang/rust/issues/67162
+        fmt::Display::fmt(&format!("{:?}({})", self, self.code()), f)
     }
 }
 
@@ -78,15 +79,15 @@ pub enum Address {
 pub struct Machine {
     state: Vec<i64>,
     pointer: usize,
+    relative_base: isize,
     pointer_moved: bool,
-    relateive_base: isize,
     input: VecDeque<i64>,
     output: VecDeque<i64>,
 }
 
 impl Machine {
     pub fn new(state: &[i64]) -> Machine {
-        Machine { state: state.to_vec(), pointer: 0, pointer_moved: false, relateive_base: 0, input: VecDeque::new(), output: VecDeque::new() }
+        Machine { state: state.to_vec(), pointer: 0, relative_base: 0, pointer_moved: false, input: VecDeque::new(), output: VecDeque::new() }
     }
 
     pub fn send_input(&mut self, input: i64) {
@@ -121,7 +122,7 @@ impl Machine {
                 .expect(&format!("Invalid opcode {} at {}", self.state[self.pointer], self.pointer));
             let params = self.compute_params(opcode, code / 100);
 
-            let proceed = debugger.on_exec(self.pointer, opcode, &params, &self.state);
+            let proceed = debugger.on_exec(opcode, &params, &self.state, self.pointer, self.relative_base);
             if !proceed { break; }
 
             match opcode {
@@ -163,34 +164,24 @@ impl Machine {
         ret
     }
 
-    fn expand_memory(&mut self, index: usize) {
-        // TODO optimize this
-        while self.state.len() <= index {
-            self.state.push(0);
-        }
-    }
-
-    fn read(&mut self, params: &[Address], index: usize) -> i64 {
-        match params[index] {
-            Address::Reference(a) => {
-                self.expand_memory(a); self.state[a]
-            },
+    fn read(&self, param: Address) -> i64 {
+        match param {
+            Address::Reference(a) => *self.state.get(a).unwrap_or(&0),
             Address::Immediate(v) => v,
-            Address::Relative(r) => {
-                let address = (self.relateive_base + r) as usize;
-                self.expand_memory(address);
-                self.state[address]
-            },
+            Address::Relative(r) => *self.state.get((self.relative_base + r) as usize).unwrap_or(&0),
         }
     }
 
-    fn write(&mut self, params: &[Address], index: usize, value: i64) {
-        let address = match params[index] {
+    fn write(&mut self, param: Address, value: i64) {
+        let address = match param {
             Address::Reference(a) => a,
             Address::Immediate(_) => panic!("Can't write in immediate mode"),
-            Address::Relative(r) => (self.relateive_base + r) as usize,
+            Address::Relative(r) => (self.relative_base + r) as usize,
         };
-        self.expand_memory(address);
+        if self.state.len() <= address {
+            let len = self.state.len();
+            self.state.extend(vec![0; address - len + 1]);
+        }
         self.state[address] = value;
     }
 
@@ -200,62 +191,46 @@ impl Machine {
     }
 
     fn add(&mut self, params: &[Address]) {
-        let a = self.read(params, 0);
-        let b = self.read(params, 1);
-        self.write(params, 2, a + b);
+        self.write(params[2], self.read(params[0]) + self.read(params[1]));
     }
 
     fn mul(&mut self, params: &[Address]) {
-        let a = self.read(params, 0);
-        let b = self.read(params, 1);
-        self.write(params, 2, a * b);
+        self.write(params[2], self.read(params[0]) * self.read(params[1]));
     }
 
     fn input(&mut self, params: &[Address]) {
         let input = self.input.pop_front().expect("No input left");
-        self.write(params, 0, input);
+        self.write(params[0], input);
     }
 
     fn output(&mut self, params: &[Address]) {
-        let value = self.read(params, 0);
-        self.output.push_back(value);
+        self.output.push_back(self.read(params[0]));
     }
 
     fn jump_if_true(&mut self, params: &[Address]) {
-        if self.read(params, 0) != 0 {
-            let dest = self.read(params, 1) as usize;
-            self.move_pointer(dest);
+        if self.read(params[0]) != 0 {
+            self.move_pointer(self.read(params[1]) as usize);
         }
     }
 
     fn jump_if_false(&mut self, params: &[Address]) {
-        if self.read(params, 0) == 0 {
-            let dest = self.read(params, 1) as usize;
-            self.move_pointer(dest);
+        if self.read(params[0]) == 0 {
+            self.move_pointer(self.read(params[1]) as usize);
         }
     }
 
     fn less_than(&mut self, params: &[Address]) {
-        let value = if self.read(params, 0) < self.read(params, 1) {
-            1
-        } else {
-            0
-        };
-        self.write(params, 2, value);
+        let value = if self.read(params[0]) < self.read(params[1]) { 1 } else { 0 };
+        self.write(params[2], value);
     }
 
     fn equals(&mut self, params: &[Address]) {
-        let value = if self.read(params, 0) == self.read(params, 1) {
-            1
-        } else {
-            0
-        };
-        self.write(params, 2, value);
+        let value = if self.read(params[0]) == self.read(params[1]) { 1 } else { 0 };
+        self.write(params[2], value);
     }
 
     fn update_relative_base(&mut self, params: &[Address]) {
-        let value = self.read(params, 0) + self.relateive_base as i64;
-        self.relateive_base = value as isize;
+        self.relative_base += self.read(params[0]) as isize;
     }
 }
 
@@ -310,14 +285,14 @@ impl fmt::Display for Machine {
 }
 
 pub trait Debugger {
-    fn on_exec(&mut self, pointer: usize, opcode: Opcode, params: &[Address], state: &[i64]) -> bool;
+    fn on_exec(&mut self, opcode: Opcode, params: &[Address], state: &[i64], pointer: usize, relative_base: isize) -> bool;
 
     fn on_halt(&mut self, pointer: usize) { let _=pointer; }
 }
 
 struct NoopDebugger;
 impl Debugger for NoopDebugger {
-    fn on_exec(&mut self, _: usize, _: Opcode, _: &[Address], _: &[i64]) -> bool { true }
+    fn on_exec(&mut self, _: Opcode, _: &[Address], _: &[i64], _: usize, _: isize) -> bool { true }
 }
 
 pub struct ExecCounter {
@@ -340,7 +315,7 @@ impl ExecCounter {
 }
 
 impl Debugger for ExecCounter {
-    fn on_exec(&mut self, _: usize, opcode: Opcode, _: &[Address], _: &[i64]) -> bool {
+    fn on_exec(&mut self, opcode: Opcode, _: &[Address], _: &[i64], _: usize, _: isize) -> bool {
         let count = self.counts.entry(opcode).or_insert(0);
         *count += 1;
         true
@@ -354,12 +329,12 @@ impl Debugger for ExecCounter {
 pub struct ExecLogger {
     steps: usize,
     halt_after: usize,
-    should_log: Box<Fn(Opcode, usize) -> bool>,
+    should_log: Box<dyn Fn(Opcode, usize) -> bool>,
 }
 
 #[allow(dead_code)]
 impl ExecLogger {
-    pub fn new(halt_after: usize, should_log: Box<Fn(Opcode, usize) -> bool>) -> ExecLogger {
+    pub fn new(halt_after: usize, should_log: Box<dyn Fn(Opcode, usize) -> bool>) -> ExecLogger {
         ExecLogger{ steps: 0, halt_after, should_log }
     }
 
@@ -369,17 +344,17 @@ impl ExecLogger {
 }
 
 impl Debugger for ExecLogger {
-    fn on_exec(&mut self, pointer: usize, opcode: Opcode, params: &[Address], state: &[i64]) -> bool {
+    fn on_exec(&mut self, opcode: Opcode, params: &[Address], state: &[i64], pointer: usize, relative_base: isize) -> bool {
         self.steps += 1;
         if (self.should_log)(opcode, self.steps) {
             let mut out = String::new();
 
-            write!(&mut out, "{:5}:{:<5} {:>10}", pointer, self.steps, opcode.to_string()).unwrap();
+            write!(&mut out, "{:5}:{:<5} {:>10}", pointer, self.steps, opcode).unwrap();
             for param in params {
                 let formatted = match param {
-                    Address::Reference(a) => format!("{}[{}]", a, state[*a]),
+                    Address::Reference(a) => format!("{}[{}]", a, state.get(*a).unwrap_or(&0)),
                     Address::Immediate(v) => format!("{}", v),
-                    Address::Relative(r) => format!("R{}[??]", r), // TODO access relative base
+                    Address::Relative(r) => format!("{}{:+}[{}]", r, relative_base, state.get((r+relative_base) as usize).unwrap_or(&0)),
                 };
                 write!(&mut out, "\t{:>14}", formatted).unwrap();
             }
@@ -398,19 +373,31 @@ impl Debugger for ExecLogger {
 mod tests {
     use super::*;
 
-    parameterized_test! { add_mul, (program, expected), {
+    parameterized_test! { state, (program, expected), {
         let mut machine: Machine = program.parse().expect("Invalid");
         machine.run();
         let expected: Machine = expected.parse().expect("Invalid");
-        // TODO stop directly reading the state field
         assert_eq!(machine.state, expected.state);
     }}
-    add_mul! {
-        // From Day 2
-        a: ("1,9,10,3,2,3,11,0,99,30,40,50", "3500,9,10,70,2,3,11,0,99,30,40,50"),
-        b: ("1,0,0,0,99", "2,0,0,0,99"),
-        c: ("2,4,4,5,99,0", "2,4,4,5,99,9801"),
-        d: ("1,1,1,4,99,5,6,0,99", "30,1,1,4,2,5,6,0,99"),
+    state! {
+        d2_add_mul: ("1,9,10,3,2,3,11,0,99,30,40,50", "3500,9,10,70,2,3,11,0,99,30,40,50"),
+        d2_add: ("1,0,0,0,99", "2,0,0,0,99"),
+        d2_mul: ("2,4,4,5,99,0", "2,4,4,5,99,9801"),
+        d2_add_mul_dynamic: ("1,1,1,4,99,5,6,0,99", "30,1,1,4,2,5,6,0,99"),
+        d5_immediate_mode: ("1002,4,3,4,33", "1002,4,3,4,99"),
+        d5_negative_num: ("1101,100,-1,4,0", "1101,100,-1,4,99"),
+    }
+
+    parameterized_test!{ output, (program, expected), {
+        let mut machine: Machine = program.parse().unwrap();
+        machine.run();
+        assert_eq!(machine.read_output(), expected);
+    }}
+    output!{
+        d9_quine: ("109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99",
+            vec!(109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99)),
+        d9_large_add: ("1102,34915192,34915192,7,4,7,99,0", vec!(1219070632396864)),
+        d9_large_value: ("104,1125899906842624,99", vec!(1125899906842624i64)),
     }
 
     parameterized_test! { io, (program, input, expected_output), {
@@ -422,24 +409,10 @@ mod tests {
         assert_eq!(machine.read_output(), expected_output);
     }}
     io! {
-        // From Day 5
-        a: ("3,0,4,0,99", vec!(10), vec!(10)),
+        d5_identity: ("3,0,4,0,99", vec!(10), vec!(10)),
     }
 
-    parameterized_test! { immediate_mode, (program, expected), {
-        let mut machine: Machine = program.parse().expect("Invalid");
-        machine.run();
-        let expected: Machine = expected.parse().expect("Invalid");
-        // TODO stop directly reading the state field
-        assert_eq!(machine.state, expected.state);
-    }}
-    immediate_mode! {
-        // From Day 5
-        a: ("1002,4,3,4,33", "1002,4,3,4,99"),
-        b: ("1101,100,-1,4,0", "1101,100,-1,4,99"),
-    }
-
-    parameterized_test! { lteq, (program, true_input, false_input), {
+    parameterized_test! { test_input, (program, true_input, false_input), {
         let mut machine: Machine = program.parse().expect("Invalid");
         machine.send_input(true_input);
         machine.run();
@@ -450,44 +423,14 @@ mod tests {
         machine.run();
         assert_eq!(machine.read_output(), vec!(0));
     }}
-    lteq! {
-        // From Day 5
-        a: ("3,9,8,9,10,9,4,9,99,-1,8", 8, 12),
-        b: ("3,9,7,9,10,9,4,9,99,-1,8", 5, 11),
-        c: ("3,3,1108,-1,8,3,4,3,99", 8, 10),
-        d: ("3,3,1107,-1,8,3,4,3,99", 4, 9),
+    test_input! {
+        d5_pos_eq: ("3,9,8,9,10,9,4,9,99,-1,8", 8, 12),
+        d5_pos_lt: ("3,9,7,9,10,9,4,9,99,-1,8", 5, 11),
+        d5_immed_eq: ("3,3,1108,-1,8,3,4,3,99", 8, 10),
+        d5_immed_lt: ("3,3,1107,-1,8,3,4,3,99", 4, 9),
+        d5_pos_jump: ("3,12,6,12,15,1,13,14,13,4,13,99,-1,0,1,9", 5, 0),
+        d5_immed_jump: ("3,3,1105,-1,9,1101,0,0,12,4,12,99,1", 5, 0),
     }
-
-    parameterized_test! { jumps, program, {
-        let mut machine: Machine = program.parse().expect("Invalid");
-        println!("{}", machine);
-        machine.send_input(0);
-        machine.run();
-        assert_eq!(machine.read_output(), vec!(0));
-
-        let mut machine: Machine = program.parse().expect("Invalid");
-        machine.send_input(5);
-        machine.run();
-        assert_eq!(machine.read_output(), vec!(1));
-    }}
-    jumps! {
-        // From Day 5
-        a: "3,12,6,12,15,1,13,14,13,4,13,99,-1,0,1,9",
-        b: "3,3,1105,-1,9,1101,0,0,12,4,12,99,1",
-    }
-
-    parameterized_test!{ relateive_mode, (program, expected), {
-        let mut machine: Machine = program.parse().unwrap();
-        machine.run();
-        assert_eq!(machine.read_output(), expected);
-    }}
-    relateive_mode!{
-        // From Day 9
-        quine: ("109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99", vec!(109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99)),
-        large_add: ("1102,34915192,34915192,7,4,7,99,0", vec!(1219070632396864)),
-        large_print: ("104,1125899906842624,99", vec!(1125899906842624i64)),
-    }
-
 
     parameterized_test! { display, (input, pointer, expected), {
         let mut machine = Machine::new(&input);
