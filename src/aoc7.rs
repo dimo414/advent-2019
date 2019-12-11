@@ -1,5 +1,5 @@
 use std::fs;
-use crate::intcode::{Debugger, Machine, Opcode, Address};
+use crate::intcode::Machine;
 use permutohedron::LexicalPermutation;
 
 pub fn advent() {
@@ -43,11 +43,14 @@ fn compute_feedback_signal(program: &str, sequence: &[i64]) -> i64 {
     let mut last_output = 0;
     for i in (0..machines.len()).cycle() {
         machines[i].send_input(last_output);
-        machines[i].debug(&mut BreakOnOutput::new());
-        let output = machines[i].read_output();
-        assert!(output.len() < 2);
-        if output.is_empty() { assert_eq!(i, 0); break; }
-        last_output = output[0];
+        let output = machines[i].run_until(1);
+        match output {
+            Some(o) => {
+                assert_eq!(o.len(), 1);
+                last_output = o[0];
+            },
+            None => { assert_eq!(i, 0); break; }
+        }
     }
     last_output
 }
@@ -80,29 +83,6 @@ fn find_maximum_feedback_signal(program: &str) -> (Vec<i64>, i64) {
         }
     }
     max
-}
-
-pub struct BreakOnOutput {
-    seen_output: bool,
-}
-
-impl BreakOnOutput {
-    pub fn new() -> BreakOnOutput {
-        BreakOnOutput{ seen_output: false }
-    }
-}
-
-impl Debugger for BreakOnOutput {
-    fn on_exec(&mut self, opcode: Opcode, _: &[Address], _: &[i64], _: usize, _: isize) -> bool {
-        if self.seen_output && opcode != Opcode::EXIT {
-            self.seen_output = false;
-            return false;
-        }
-        if opcode == Opcode::OUTPUT {
-            self.seen_output = true;
-        }
-        true
-    }
 }
 
 #[cfg(test)]

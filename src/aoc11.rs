@@ -1,4 +1,4 @@
-use crate::intcode::{Address, Debugger, Machine, Opcode};
+use crate::intcode::Machine;
 use std::fs;
 use std::collections::HashMap;
 use crate::euclid::{point, Point, vector, Vector};
@@ -18,7 +18,6 @@ fn read_data() -> Machine {
 
 fn paint(paint_origin: bool, print_progress: bool) -> HashMap<Point, i64> {
     let mut machine = read_data();
-    let mut breaker = BreakOn2Output::new();
     let mut hull = HashMap::new();
     let mut dir = Dir::UP;
     let mut pos = point(0, 0);
@@ -39,14 +38,17 @@ fn paint(paint_origin: bool, print_progress: bool) -> HashMap<Point, i64> {
             std::thread::sleep(std::time::Duration::from_millis(25));
         }
         machine.send_input(*hull.get(&pos).unwrap_or(&0));
-        machine.debug(&mut breaker);
-        let output = machine.read_output();
-        if output.is_empty() { break; }
-        assert!(output[0] == 0 || output[0] == 1);
-        hull.insert(pos, output[0]);
-        assert!(output[1] == 0 || output[1] == 1);
-        dir = dir.rotate(output[1] == 1);
-        pos += dir.vec();
+        match machine.run_until(2) {
+            Some(output) => {
+                assert!(output[0] == 0 || output[0] == 1);
+                hull.insert(pos, output[0]);
+                assert!(output[1] == 0 || output[1] == 1);
+                dir = dir.rotate(output[1] == 1);
+                pos += dir.vec();
+            },
+            None => break,
+        }
+
     }
     if cfg!(debug_assertions) && print_progress {
         print!("\u{001B}[?25h"); // restore cursor
@@ -99,30 +101,6 @@ impl Dir {
             LEFT => vector(-1, 0),
             RIGHT => vector(1, 0),
         }
-    }
-}
-
-pub struct BreakOn2Output {
-    seen_output: usize,
-}
-
-impl BreakOn2Output {
-    pub fn new() -> BreakOn2Output {
-        BreakOn2Output{ seen_output: 0 }
-    }
-}
-
-impl Debugger for BreakOn2Output {
-    fn on_exec(&mut self, opcode: Opcode, _: &[Address], _: &[i64], _: usize, _: isize) -> bool {
-        if self.seen_output > 2 { unreachable!(); }
-        if self.seen_output == 2 && opcode != Opcode::EXIT {
-            self.seen_output = 0;
-            return false;
-        }
-        if opcode == Opcode::OUTPUT {
-            self.seen_output += 1;
-        }
-        true
     }
 }
 
