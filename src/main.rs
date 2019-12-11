@@ -1,8 +1,9 @@
 // https://github.com/rust-lang/cargo/issues/3591#issuecomment-475701083
 //#![ allow( dead_code, unused_imports, unused_variables ) ]
 #[macro_use] extern crate lazy_static;
-extern crate regex;
+extern crate num_integer;
 extern crate permutohedron;
+extern crate regex;
 
 use std::env;
 
@@ -56,6 +57,8 @@ mod aoc6;
 mod aoc7;
 mod aoc8;
 mod aoc9;
+mod aoc10;
+mod aoc11;
 
 fn main() {
     println!(); // split build output from runtime output
@@ -75,6 +78,8 @@ fn main() {
         7 => aoc7::advent(),
         8 => aoc8::advent(),
         9 => aoc9::advent(),
+        10 => aoc10::advent(),
+        11 => aoc11::advent(),
         x => {
             eprintln!("Day {} hasn't happened yet.", x);
             ::std::process::exit(1);

@@ -86,7 +86,6 @@ pub struct BreakOnOutput {
     seen_output: bool,
 }
 
-#[allow(dead_code)]
 impl BreakOnOutput {
     pub fn new() -> BreakOnOutput {
         BreakOnOutput{ seen_output: false }

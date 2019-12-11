@@ -167,6 +167,7 @@ pub use self::point::{Point,point};
 mod vector {
     use std::fmt;
     use std::str::FromStr;
+    use std::ops::Mul;
     use crate::error::ParseError;
 
     #[derive(Copy, Clone, PartialEq, Eq, Hash)]
@@ -191,6 +192,14 @@ mod vector {
 
         pub fn grid_len(&self) -> u32 {
             (self.x.abs() + self.y.abs()) as u32
+        }
+    }
+
+    impl Mul<i32> for Vector {
+        type Output = Vector;
+
+        fn mul(self, m: i32) -> Vector {
+            vector(self.x * m, self.y * m)
         }
     }
 
