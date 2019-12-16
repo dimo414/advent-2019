@@ -99,6 +99,12 @@ impl Machine {
         }
     }
 
+    pub fn from_file(file: &str) -> Machine {
+        std::fs::read_to_string(file).expect("Cannot open")
+            .trim().parse().expect("Invalid program")
+
+    }
+
     pub fn send_input(&mut self, input: i64) {
         self.input.push_back(input);
     }
@@ -128,14 +134,18 @@ impl Machine {
     }
 
     pub fn run(&mut self) {
-        self.run_internal(None);
+        self.run_internal(false, None);
     }
 
     pub fn run_until(&mut self, output: usize) -> Option<Vec<i64>> {
-        self.run_internal(Some(output))
+        self.run_internal(false, Some(output))
     }
 
-    fn run_internal(&mut self, output: Option<usize>) -> Option<Vec<i64>> {
+    pub fn run_until_input(&mut self) {
+        self.run_internal(true, None);
+    }
+
+    fn run_internal(&mut self, input: bool, output: Option<usize>) -> Option<Vec<i64>> {
         loop {
             if let Some(o) = output {
                 if self.output.len() == o {
@@ -150,6 +160,8 @@ impl Machine {
 
             let proceed = self.debugger.on_exec(opcode, &params, &self.state, self.pointer, self.relative_base);
             if !proceed { break; }
+
+            if input && opcode == Opcode::INPUT && self.input.is_empty() { break; }
 
             match opcode {
                 Opcode::ADD => self.add(&params),
@@ -169,6 +181,7 @@ impl Machine {
             }
             self.pointer_moved = false;
         }
+        // TODO this is wrong; the break statements above end up triggering this
         self.debugger.on_halt(self.pointer);
         None
     }
