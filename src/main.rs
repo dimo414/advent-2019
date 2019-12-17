@@ -63,6 +63,7 @@ mod aoc11;
 mod aoc12;
 mod aoc13;
 mod aoc14;
+mod aoc16;
 
 fn main() {
     println!(); // split build output from runtime output
@@ -87,6 +88,7 @@ fn main() {
         12 => aoc12::advent(),
         13 => aoc13::advent(),
         14 => aoc14::advent(),
+        16 => aoc16::advent(),
         x => {
             eprintln!("Day {} hasn't happened yet.", x);
             ::std::process::exit(1);
