@@ -48,6 +48,7 @@ mod error;
 mod euclid;
 mod euclid3d;
 mod intcode;
+mod pathfinding;
 
 mod aoc1;
 mod aoc2;
@@ -63,6 +64,7 @@ mod aoc11;
 mod aoc12;
 mod aoc13;
 mod aoc14;
+mod aoc15;
 mod aoc16;
 
 fn main() {
@@ -88,6 +90,7 @@ fn main() {
         12 => aoc12::advent(),
         13 => aoc13::advent(),
         14 => aoc14::advent(),
+        15 => aoc15::advent(),
         16 => aoc16::advent(),
         x => {
             eprintln!("Day {} hasn't happened yet.", x);
