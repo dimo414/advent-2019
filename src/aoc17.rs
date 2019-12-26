@@ -210,7 +210,6 @@ fn nth_comma_rev<'a>(s: &'a str, nth: usize) -> &'a str {
     &s[s.len()-pos..]
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

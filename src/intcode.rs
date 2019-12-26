@@ -77,7 +77,7 @@ pub enum Address {
 }
 
 pub struct Machine {
-    state: Vec<i64>,
+    pub state: Vec<i64>,
     pointer: usize,
     relative_base: isize,
     pointer_moved: bool,
@@ -145,7 +145,8 @@ impl Machine {
         self.run_internal(true, None);
     }
 
-    fn run_internal(&mut self, input: bool, output: Option<usize>) -> Option<Vec<i64>> {
+    // TODO need to redesign machine I/O, this should not be pub
+    pub fn run_internal(&mut self, input: bool, output: Option<usize>) -> Option<Vec<i64>> {
         loop {
             if let Some(o) = output {
                 if self.output.len() == o {

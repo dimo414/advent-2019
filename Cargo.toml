@@ -6,6 +6,7 @@ edition = "2018"
 
 [dependencies]
 lazy_static = "1.4.0"
+mod_exp = "1.0.1"
 num-integer = "0.1.41"
 permutohedron = "0.2.4"
 regex = "1"
