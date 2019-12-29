@@ -1,5 +1,4 @@
-use crate::intcode::Machine;
-use std::fs;
+use crate::intcode::{Machine, State};
 use std::collections::HashMap;
 use crate::euclid::{point, Point, vector, Vector};
 
@@ -13,7 +12,7 @@ pub fn advent() {
 }
 
 fn read_data() -> Machine {
-    fs::read_to_string("data/day11.txt").expect("Cannot open").trim().parse().expect("Invalid")
+    Machine::from_file("data/day11.txt")
 }
 
 fn paint(paint_origin: bool, print_progress: bool) -> HashMap<Point, i64> {
@@ -38,15 +37,17 @@ fn paint(paint_origin: bool, print_progress: bool) -> HashMap<Point, i64> {
             std::thread::sleep(std::time::Duration::from_millis(25));
         }
         machine.send_input(*hull.get(&pos).unwrap_or(&0));
-        match machine.run_until(2) {
-            Some(output) => {
-                assert!(output[0] == 0 || output[0] == 1);
-                hull.insert(pos, output[0]);
-                assert!(output[1] == 0 || output[1] == 1);
-                dir = dir.rotate(output[1] == 1);
-                pos += dir.vec();
-            },
-            None => break,
+        let state = machine.run();
+        let output = machine.read_output();
+        assert!(output[0] == 0 || output[0] == 1);
+        hull.insert(pos, output[0]);
+        assert!(output[1] == 0 || output[1] == 1);
+        dir = dir.rotate(output[1] == 1);
+        pos += dir.vec();
+        match state {
+            State::INPUT => {},
+            State::HALT => { break; },
+            _ => panic!(),
         }
 
     }

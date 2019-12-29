@@ -76,14 +76,32 @@ pub enum Address {
     Relative(isize),
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum State {
+    INPUT,
+    OUTPUT,
+    DEBUG,
+    HALT,
+}
+
+impl State {
+    pub fn assert_input(&self) {
+        assert_eq!(*self, State::INPUT);
+    }
+
+    pub fn assert_halt(&self) {
+        assert_eq!(*self, State::HALT);
+    }
+}
+
+#[derive(Clone)]
 pub struct Machine {
-    pub state: Vec<i64>,
+    state: Vec<i64>,
     pointer: usize,
     relative_base: isize,
     pointer_moved: bool,
     input: VecDeque<i64>,
-    output: VecDeque<i64>,
-    debugger: Box<Debugger>,
+    output: Vec<i64>,
 }
 
 impl Machine {
@@ -94,8 +112,7 @@ impl Machine {
             relative_base: 0,
             pointer_moved: false,
             input: VecDeque::new(),
-            output: VecDeque::new(),
-            debugger: Box::new(NoopDebugger)
+            output: Vec::new(),
         }
     }
 
@@ -109,8 +126,17 @@ impl Machine {
         self.input.push_back(input);
     }
 
+    pub fn send_input_ascii(&mut self, input: &str) {
+        input.chars().for_each(|c| self.send_input(c as i64));
+    }
+
     pub fn read_output(&mut self) -> Vec<i64> {
         self.output.drain(..).collect()
+    }
+
+    pub fn read_output_ascii(&mut self) -> String {
+        // Or with std::char::from_u32()?
+        self.output.drain(..).map(|n| n as u8 as char).collect()
     }
 
     pub fn read_state(&self, address: usize) -> i64 {
@@ -121,48 +147,35 @@ impl Machine {
         self.state[address] = value;
     }
 
-    // Not sure if there's a good way to hide the Box from the caller; impl Debugger triggers a
-    // 'static lifetime requirement
-    #[allow(dead_code)]
-    pub fn set_debugger(&mut self, debugger: Box<Debugger>) {
-        self.debugger = debugger;
-    }
-
     #[cfg(test)]
     fn set_pointer(&mut self, pointer: usize) {
         self.pointer = pointer;
     }
 
-    pub fn run(&mut self) {
-        self.run_internal(false, None);
+    pub fn run(&mut self) -> State {
+        self.run_until(|_| false)
     }
 
-    pub fn run_until(&mut self, output: usize) -> Option<Vec<i64>> {
-        self.run_internal(false, Some(output))
+    pub fn run_until(&mut self, output_fn: impl FnMut(&[i64]) -> bool) -> State {
+        self.debug(output_fn, &mut NoopDebugger)
     }
 
-    pub fn run_until_input(&mut self) {
-        self.run_internal(true, None);
-    }
-
-    // TODO need to redesign machine I/O, this should not be pub
-    pub fn run_internal(&mut self, input: bool, output: Option<usize>) -> Option<Vec<i64>> {
+    pub fn debug(&mut self, mut output_fn: impl FnMut(&[i64]) -> bool, debugger: &mut impl Debugger) -> State {
+        let mut check_output = true;
         loop {
-            if let Some(o) = output {
-                if self.output.len() == o {
-                    return Some(self.read_output());
-                }
-                assert!(self.output.len() < o);
-            }
             let code = self.state[self.pointer];
             let opcode = Opcode::lookup(code)
                 .expect(&format!("Invalid opcode {} at {}", self.state[self.pointer], self.pointer));
+
+            if opcode == Opcode::INPUT && self.input.is_empty() { return State::INPUT; }
+
+            if check_output && output_fn(&self.output) { return State::OUTPUT; }
+            check_output = opcode == Opcode::OUTPUT;
+
             let params = self.compute_params(opcode, code / 100);
 
-            let proceed = self.debugger.on_exec(opcode, &params, &self.state, self.pointer, self.relative_base);
-            if !proceed { break; }
-
-            if input && opcode == Opcode::INPUT && self.input.is_empty() { break; }
+            let proceed = debugger.on_exec(opcode, &params, &self.state, self.pointer, self.relative_base);
+            if !proceed { return State::DEBUG; }
 
             match opcode {
                 Opcode::ADD => self.add(&params),
@@ -182,9 +195,8 @@ impl Machine {
             }
             self.pointer_moved = false;
         }
-        // TODO this is wrong; the break statements above end up triggering this
-        self.debugger.on_halt(self.pointer);
-        None
+        debugger.on_halt(self.pointer);
+        State::HALT
     }
 
     fn compute_params(&self, opcode: Opcode, modes_mask: i64) -> Vec<Address> {
@@ -245,7 +257,7 @@ impl Machine {
     }
 
     fn output(&mut self, params: &[Address]) {
-        self.output.push_back(self.read(params[0]));
+        self.output.push(self.read(params[0]));
     }
 
     fn jump_if_true(&mut self, params: &[Address]) {

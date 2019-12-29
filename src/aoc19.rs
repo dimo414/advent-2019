@@ -62,16 +62,16 @@ fn width_for(y: usize, prior: (usize, usize)) -> (usize, usize) {
 
 fn in_traction(coord: Point) -> bool {
     lazy_static!{
-        static ref SOURCE: Vec<i64> = Machine::from_file("data/day19.txt").state;
+        static ref IMAGE: Machine = Machine::from_file("data/day19.txt");
     }
-    let mut machine = Machine::new(&SOURCE);
+    let mut machine = IMAGE.clone();
     // TODO the algorithm above is sensitive to the fact that our beam is narrow and pointed
     // downward (i.e. expands slowly in the x relative to the y); flipping the x/y here ought to
     // be OK, but it causes this algorithm to crash.
     machine.send_input(coord.x as i64);
     machine.send_input(coord.y as i64);
-    let output = machine.run_until(1).expect("No output");
-    output[0] == 1
+    machine.run().assert_halt();
+    machine.read_output()[0] == 1
 }
 
 #[cfg(test)]

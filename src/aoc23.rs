@@ -1,10 +1,10 @@
-use crate::intcode::Machine;
+use crate::intcode::{Machine, State};
 use std::collections::{HashMap, VecDeque, HashSet};
 
 pub fn advent() {
     let image = Machine::from_file("data/day23.txt");
     let mut machines: Vec<_> = (0..50).map(|i| {
-        let mut machine = Machine::new(&image.state);
+        let mut machine = image.clone();
         machine.send_input(i);
         machine
     }).collect();
@@ -17,33 +17,38 @@ pub fn advent() {
     loop {
         let mut idle = true;
         for (i, machine) in machines.iter_mut().enumerate() {
-            if let Some(packet) = machine.run_internal(true, Some(3)) {
-                idle = false;
-                assert_eq!(packet.len(), 3);
-                if packet[0] == 255 {
-                    if !seen_nat {
-                        println!("First NAT Packet Y:   {}", &packet[2]);
-                        seen_nat = true;
-                    }
-                    nat = Some((packet[1], packet[2]));
+            match machine.run_until(|o| o.len() >= 3) {
+                State::OUTPUT => {
+                    idle = false;
+                    let packet = machine.read_output();
+                    assert_eq!(packet.len(), 3);
+                    if packet[0] == 255 {
+                        if !seen_nat {
+                            println!("First NAT Packet Y:   {}", &packet[2]);
+                            seen_nat = true;
+                        }
+                        nat = Some((packet[1], packet[2]));
 
-                } else {
-                    let queue = queues.get_mut(&(packet[0] as usize)).expect("No queue");
-                    queue.push_back(packet[1]);
-                    queue.push_back(packet[2]);
-                }
-            } else { // awaiting input
-                let queue = queues.get_mut(&i).expect("No queue");
-                match queue.pop_front() {
-                    Some(x) => {
-                        idle = false;
-                        machine.send_input(x);
-                        machine.send_input(queue.pop_front().expect("No second part?"));
-                    },
-                    None => {
-                        machine.send_input(-1);
+                    } else {
+                        let queue = queues.get_mut(&(packet[0] as usize)).expect("No queue");
+                        queue.push_back(packet[1]);
+                        queue.push_back(packet[2]);
                     }
-                }
+                },
+                State::INPUT => {
+                    let queue = queues.get_mut(&i).expect("No queue");
+                    match queue.pop_front() {
+                        Some(x) => {
+                            idle = false;
+                            machine.send_input(x);
+                            machine.send_input(queue.pop_front().expect("No second part?"));
+                        },
+                        None => {
+                            machine.send_input(-1);
+                        }
+                    }
+                },
+                _ => panic!(),
             }
         }
 

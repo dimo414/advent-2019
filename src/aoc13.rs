@@ -1,4 +1,5 @@
 use crate::intcode::Machine;
+use crate::intcode;
 use std::collections::HashMap;
 use crate::euclid::{Point, point};
 use std::fmt;
@@ -22,15 +23,20 @@ fn play_game(print_display: bool) -> u32 {
         print!("\u{001B}[?25l"); // hide cursor
     }
     loop {
-        machine.run_until_input();
+        let machine_state = machine.run();
         let output = machine.read_output();
-        if output.is_empty() { break; }
+        assert!(!output.is_empty());
         state.update(&output);
         machine.send_input(state.find_move());
         if cfg!(debug_assertions) && print_display {
             let display = state.to_string();
             println!("{}\u{001B}[{}A", display, display.chars().filter(|&c| c == '\n').count() + 1);
             std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        match machine_state {
+            intcode::State::INPUT => {},
+            intcode::State::HALT => { break; },
+            _ => panic!(),
         }
     }
     if cfg!(debug_assertions) && print_display {

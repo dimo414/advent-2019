@@ -1,4 +1,4 @@
-use crate::intcode::Machine;
+use crate::intcode::{Machine, State};
 use crate::euclid::{Point, point, Vector, vector};
 use std::collections::HashMap;
 use crate::pathfinding::{Graph, Edge};
@@ -30,8 +30,10 @@ impl Map {
 
         loop {
             machine.send_input(map.dir.command());
-            let output = machine.run_until(1).unwrap()[0];
-            match output {
+            let state = machine.run();
+            let output = machine.read_output();
+            assert_eq!(output.len(), 1);
+            match output[0] {
                 0 => {
                     map.visited.insert(map.pos + map.dir.vector(), Type::WALL);
                     if let Some(Type::WALL) = map.visited.get(&(map.pos + map.dir.right().vector())) {
@@ -48,7 +50,7 @@ impl Map {
                     map.pos += map.dir.vector();
                     // keep-left
                     map.dir = map.dir.left();
-                    let t = match output {
+                    let t = match output[0] {
                         1 => Type::HALL,
                         2 => Type::DEVICE,
                         _ => panic!(),
@@ -65,6 +67,11 @@ impl Map {
                 let image = map.to_string();
                 println!("{}\u{001B}[{}A", image, image.chars().filter(|&c| c == '\n').count() + 1);
                 //std::thread::sleep(std::time::Duration::from_millis(5));
+            }
+            match state {
+                State::INPUT => {},
+                State::HALT => { break; },
+                _ => panic!(),
             }
         }
         if cfg!(debug_assertions) {
@@ -97,7 +104,7 @@ impl fmt::Display for Map {
                     Some(WALL) => '█',
                     Some(HALL) => ' ',
                     Some(DEVICE) => 'X',
-                    None => '▒',
+                    None => '░',
                 };
                 let c = if coord == self.pos { '#' } else { c };
                 out.push(c);

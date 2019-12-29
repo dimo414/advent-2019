@@ -1,13 +1,12 @@
-use std::fs;
 use crate::intcode::Machine;
 
 pub fn advent() {
-    let input = read_data();
-    println!("Alarm State Pos 0: {}", run_program(&input, 12, 2));
+    let image = read_data();
+    println!("Alarm State Pos 0: {}", run_program(image.clone(), 12, 2));
 
     for noun in 0..100 {
         for verb in 0..100 {
-            let output = run_program(&input, noun, verb);
+            let output = run_program(image.clone(), noun, verb);
             if output == 19690720 {
                 println!("Found NounVerb: {}", noun * 100 + verb);
                 return;
@@ -17,12 +16,11 @@ pub fn advent() {
     println!("No match!");
 }
 
-fn read_data() -> String {
-    fs::read_to_string("data/day2.txt").expect("Cannot open").trim().into()
+fn read_data() -> Machine {
+    Machine::from_file("data/day2.txt")
 }
 
-fn run_program(input: &str, noun: i64, verb: i64) -> i64 {
-    let mut machine: Machine = input.parse().expect("Invalid");
+fn run_program(mut machine: Machine, noun: i64, verb: i64) -> i64 {
     machine.set_state(1, noun);
     machine.set_state(2, verb);
     machine.run();
@@ -34,8 +32,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn set_state() {
-        assert_eq!(run_program("1,0,0,3,2,3,11,0,99,30,40,50", 9, 10), 3500);
+    fn run() {
+        let machine = "1,0,0,3,2,3,11,0,99,30,40,50".parse().unwrap();
+        assert_eq!(run_program(machine, 9, 10), 3500);
     }
 
     #[test]

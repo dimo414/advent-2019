@@ -1,16 +1,14 @@
-use crate::intcode::Machine;
-use std::fs;
+use crate::intcode::{Machine, State};
 use crate::euclid::{point, Point, vector, Vector};
 use std::collections::HashSet;
 use std::fmt::Write;
 use regex::Regex;
 
 pub fn advent() {
-    let mut machine = read_data();
-    machine.run();
-    let output = machine.read_output();
-    let display_size = output.len();
-    let display = output_to_display(&output);
+    let image = read_data();
+    let mut machine = image.clone();
+    machine.run().assert_halt();
+    let display = machine.read_output_ascii();
 
     let (start, points) = plot_map(&display);
     println!("Alignment Parameters: {}", intersection_points_sum(&points));
@@ -19,39 +17,57 @@ pub fn advent() {
 
     let (comp,a,b,c) = compress(&path).expect("Encoding not found");
 
-    let mut machine = read_data();
+    let mut machine = image.clone();
     machine.set_state(0, 2);
+
+    machine.run().assert_input();
+    let output = machine.read_output_ascii();
+    assert_eq!(output[0..display.len()], display);
+    assert_eq!(&output[display.len()..], "Main:\n");
+    machine.send_input_ascii(&format!("{}\n", comp));
+
+    machine.run().assert_input();
+    assert_eq!(machine.read_output_ascii(), "Function A:\n");
+    machine.send_input_ascii(&format!("{}\n", a));
+
+    machine.run().assert_input();
+    assert_eq!(machine.read_output_ascii(), "Function B:\n");
+    machine.send_input_ascii(&format!("{}\n", b));
+
+    machine.run().assert_input();
+    assert_eq!(machine.read_output_ascii(), "Function C:\n");
+    machine.send_input_ascii(&format!("{}\n", c));
+
+    machine.run().assert_input();
+    assert_eq!(machine.read_output_ascii(), "Continuous video feed?\n");
     let debug = if cfg!(debug_assertions) { 'y' } else { 'n' };
-    for c in format!("{}\n{}\n{}\n{}\n{}\n", comp, a, b, c, debug).chars() {
-        machine.send_input(c as i64);
-    }
-    // TODO this program is "interactive", outputting prompts and then expecting input, which is
-    // not how Machine is currently designed. It would be nice to better-support this pattern.
-    let expected_prompt = "Main:\nFunction A:\nFunction B:\nFunction C:\nContinuous video feed?";
-    let mut display = output_to_display(&machine.run_until(display_size).expect("Expected"));
-    machine.run_until(expected_prompt.len()).expect("Expected"); // clear this output
-    machine.run_until(display_size+2);
+    machine.send_input_ascii(&format!("{}\n", debug));
+
     if debug == 'y' {
+        // skip the preceeding whitespace
+        assert_eq!(machine.run_until(|o| o == &['\n' as i64]), State::OUTPUT);
+        assert_eq!(machine.read_output_ascii(), "\n");
+
+        let mut display = display;
         loop {
-            if let Some(output) = machine.run_until(display_size) {
-                println!("{}\u{001B}[{}A", display, display.chars().filter(|&c| c=='\n').count()+1);
-                display = output_to_display(&output);
-            } else { break; }
+            match machine.run_until(|o| o.len() >= 2 && &o[o.len()-2..] == &['\n' as i64, '\n' as i64]) {
+                State::OUTPUT => {
+                    display = machine.read_output_ascii();
+                    let display = &display[..display.len()-1]; // remove the extra trailing newline
+                    print!("{}\u{001B}[{}A", display.replace('.', " "), display.chars().filter(|&c| c=='\n').count());
+                },
+                State::HALT => { println!("{}", display.replace('.', " ")); break; },
+                _ => panic!(),
+            }
         }
-        println!("{}", display);
     } else {
-        machine.run();
+        machine.run().assert_halt();
     }
     println!("Dust collected: {}", machine.read_output().last().expect("No output remaining"));
 }
 
 fn read_data() -> Machine {
-    fs::read_to_string("data/day17.txt").expect("Cannot open").trim().parse().expect("Invalid")
-}
-
-fn output_to_display(output: &[i64]) -> String {
-    // TODO truncate the trailing newlines without copying the whole string?
-    output.iter().map(|&n| std::char::from_u32(n as u32).unwrap()).collect::<String>().trim().to_string()
+    Machine::from_file("data/day17.txt")
 }
 
 fn plot_map(input: &str) -> (Point,HashSet<Point>) {

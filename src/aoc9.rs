@@ -1,4 +1,3 @@
-use std::fs;
 use crate::intcode::Machine;
 
 pub fn advent() {
@@ -14,7 +13,7 @@ pub fn advent() {
 }
 
 fn read_data() -> Machine {
-    fs::read_to_string("data/day9.txt").expect("Cannot open").trim().parse().expect("Invalid")
+    Machine::from_file("data/day9.txt")
 }
 
 #[cfg(test)]
