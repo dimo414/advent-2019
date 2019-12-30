@@ -18,6 +18,12 @@ macro_rules! capture_group {
   ($caps:expr, $group:expr) => { $caps.get($group).expect("valid capture group").as_str() };
 }
 
+macro_rules! interactive {
+    () => {
+        cfg!(feature = "interactive") || cfg!(debug_assertions) && !cfg!(test)
+    };
+}
+
 #[allow(unused_macros)]
 macro_rules! with_dollar_sign {
     ($($body:tt)*) => {
@@ -45,6 +51,7 @@ macro_rules! parameterized_test {
                             )*
                         }}}}}}}
 
+mod console;
 mod error;
 mod euclid;
 mod euclid3d;
@@ -75,6 +82,7 @@ mod aoc23;
 mod aoc24;
 
 fn main() {
+    let _console = console::Console::init();
     println!(); // split build output from runtime output
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
@@ -109,6 +117,5 @@ fn main() {
             eprintln!("Day {} hasn't happened yet.", x);
             ::std::process::exit(1);
         },
-
     }
 }

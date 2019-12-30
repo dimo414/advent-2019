@@ -10,3 +10,11 @@ mod_exp = "1.0.1"
 num-integer = "0.1.41"
 permutohedron = "0.2.4"
 regex = "1"
+
+# https://doc.rust-lang.org/1.29.0/book/first-edition/conditional-compilation.html
+# https://doc.rust-lang.org/cargo/reference/manifest.html#the-features-section
+[features]
+default = []
+# if enabled compiles additional output / debugging details
+# implicitly enabled in non-release mode
+interactive = []

@@ -40,7 +40,7 @@ pub fn advent() {
 
     machine.run().assert_input();
     assert_eq!(machine.read_output_ascii(), "Continuous video feed?\n");
-    let debug = if cfg!(debug_assertions) { 'y' } else { 'n' };
+    let debug = if interactive!() { 'y' } else { 'n' };
     machine.send_input_ascii(&format!("{}\n", debug));
 
     if debug == 'y' {

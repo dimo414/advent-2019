@@ -11,24 +11,21 @@ pub fn advent() {
     state.update(&machine.read_output());
     let blocks = state.find_tiles(Tile::BLOCK).len();
 
-    let score = play_game(true);
+    let score = play_game();
     println!("Initial Blocks: {}\nFinal Score: {}", blocks, score);
 }
 
-fn play_game(print_display: bool) -> u32 {
+fn play_game() -> u32 {
     let mut machine = Machine::from_file("data/day13.txt");
     machine.set_state(0, 2);
     let mut state = State::new();
-    if cfg!(debug_assertions) && print_display {
-        print!("\u{001B}[?25l"); // hide cursor
-    }
     loop {
         let machine_state = machine.run();
         let output = machine.read_output();
         assert!(!output.is_empty());
         state.update(&output);
         machine.send_input(state.find_move());
-        if cfg!(debug_assertions) && print_display {
+        if interactive!() {
             let display = state.to_string();
             println!("{}\u{001B}[{}A", display, display.chars().filter(|&c| c == '\n').count() + 1);
             std::thread::sleep(std::time::Duration::from_millis(5));
@@ -39,9 +36,8 @@ fn play_game(print_display: bool) -> u32 {
             _ => panic!(),
         }
     }
-    if cfg!(debug_assertions) && print_display {
+    if interactive!() {
         println!("{}", state);
-        print!("\u{001B}[?25h"); // restore cursor
     }
     state.score
 }
@@ -140,7 +136,7 @@ impl fmt::Display for State {
             }
             out.push('\n');
         }
-        write!(f, "{}Step: {:<5}  Blocks Left: {:<5}  Score: {:<8}",
+        write!(f, "{}Step: {:<4}  Blocks Left: {:<3} Score: {:>5}",
                out, self.steps, self.find_tiles(Tile::BLOCK).len(), self.score)
     }
 }
@@ -150,7 +146,7 @@ mod tests {
     use super::*;
 
     // Basic change-detector; problem statement doesn't offer any meaningful test cases
-    #[test] fn check_score() { assert_eq!(play_game(false), 11140); }
+    #[test] fn check_score() { assert_eq!(play_game(), 11140); }
 
     #[test]
     fn state_updates() {

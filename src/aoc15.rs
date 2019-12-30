@@ -63,7 +63,7 @@ impl Map {
                 },
                 _ => panic!(),
             }
-            if cfg!(debug_assertions) {
+            if interactive!() {
                 let image = map.to_string();
                 println!("{}\u{001B}[{}A", image, image.chars().filter(|&c| c == '\n').count() + 1);
                 //std::thread::sleep(std::time::Duration::from_millis(5));
@@ -74,7 +74,7 @@ impl Map {
                 _ => panic!(),
             }
         }
-        if cfg!(debug_assertions) {
+        if interactive!() {
             println!("{}", map);
         }
 
