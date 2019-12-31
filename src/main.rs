@@ -77,6 +77,7 @@ mod aoc16;
 mod aoc17;
 mod aoc19;
 mod aoc20;
+mod aoc21;
 mod aoc22;
 mod aoc23;
 mod aoc24;
@@ -110,6 +111,7 @@ fn main() {
         17 => aoc17::advent(),
         19 => aoc19::advent(),
         20 => aoc20::advent(),
+        21 => aoc21::advent(),
         22 => aoc22::advent(),
         23 => aoc23::advent(),
         24 => aoc24::advent(),

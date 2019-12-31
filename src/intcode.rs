@@ -89,6 +89,10 @@ impl State {
         assert_eq!(*self, State::INPUT);
     }
 
+    pub fn assert_output(&self) {
+        assert_eq!(*self, State::OUTPUT);
+    }
+
     pub fn assert_halt(&self) {
         assert_eq!(*self, State::HALT);
     }
