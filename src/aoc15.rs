@@ -82,7 +82,7 @@ impl Map {
     }
 
     fn distance_to_o2_system(&self) -> u32 {
-        self.dijkstras(&Point::ORIGIN, &self.device.expect("Device not found"))
+        self.dijkstras(&Point::ORIGIN, |n| n == &self.device.expect("Device not found"))
             .expect("No path").len() as u32
     }
 

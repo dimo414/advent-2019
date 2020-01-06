@@ -39,7 +39,7 @@ impl Maze {
     }
 
     fn route(&self) -> Vec<Edge<Point>> {
-        self.dijkstras(&self.start, &self.goal).expect("No path!")
+        self.dijkstras(&self.start, |n| n == &self.goal).expect("No path!")
     }
 }
 
@@ -129,7 +129,7 @@ impl<'a> RecursiveMaze<'a> {
     }
 
     fn route(&self) -> Vec<Edge<(Point, i32)>> {
-        self.dijkstras(&(self.maze.start, 0), &(self.maze.goal, 0)).expect("No path!")
+        self.dijkstras(&(self.maze.start, 0), |n| n == &(self.maze.goal, 0)).expect("No path!")
     }
 }
 

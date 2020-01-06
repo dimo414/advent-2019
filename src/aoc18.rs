@@ -1,19 +1,21 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 use crate::euclid::{point, Point, vector};
 use std::str::FromStr;
 use crate::error::ParseError;
 use std::fmt;
+use crate::pathfinding::{Graph, Edge};
 
 pub fn advent() {
+    // https://old.reddit.com/r/adventofcode/comments/ednz2o/2019_day_18_for_dummies/fbk1qg3/
     let map = read_data();
     if interactive!() {
         println!("{}", map);
     }
 
-    println!("Scouted Route: {}", map.bfs().len()-1);
+    println!("Scouted Route: {}", map.route_len());
 
     let robo_map = RoboMap::create(&map);
-    println!("Robots' Route: {}", robo_map.bfs().len()-1);
+    println!("Robots' Route: {}", robo_map.route_len());
 }
 
 fn read_data() -> Map {
@@ -71,46 +73,17 @@ struct Map {
 }
 
 impl Map {
-    // https://old.reddit.com/r/adventofcode/comments/ednz2o/2019_day_18_for_dummies/fbk1qg3/
-    fn bfs(&self) -> Vec<ScanState> {
-        let start = ScanState::create(self.entrance, CharSet::create(""));
+    fn route_len(&self) -> usize {
         let goal = CharSet::create(&self.keys.keys().collect::<String>());
-        let mut frontier = VecDeque::new();
-        frontier.push_back(start.clone());
-        let mut routes = HashMap::new();
-        routes.insert(start.clone(), start.clone()); // careful, potential infinite loop
-
-        let mut end = None;
-
-        'outer: while let Some(cur) = frontier.pop_front() {
-            for next in self.neighbors(cur) {
-                if !routes.contains_key(&next) {
-                    frontier.push_back(next.clone());
-                    routes.insert(next.clone(), cur.clone());
-                }
-                if next.keys == goal {
-                    end = Some(next);
-                    break 'outer;
-                }
-            }
-        }
-
-        let mut current = end.expect("No path").clone();
-        let mut path = Vec::new();
-        while current != start {
-            if let Some(next) = routes.get(&current) {
-                path.push(current.clone());
-                current = next.clone();
-            } else {
-                panic!();
-            }
-        }
-        path.push(start.clone());
-        path.reverse();
-        path
+        self.bfs(&ScanState::create(self.entrance, CharSet::create("")), |n| n.keys == goal)
+            .expect("No route").len() - 1
     }
+}
 
-    fn neighbors(&self, source: ScanState) -> Vec<ScanState> {
+impl Graph for Map {
+    type Node = ScanState;
+
+    fn neighbors(&self, source: &Self::Node) -> Vec<Edge<Self::Node>> {
         [vector(0, 1), vector(1, 0), vector(0, -1), vector(-1, 0)].iter()
             .map(|v| source.pos + v)
             .filter_map(|p| {
@@ -122,6 +95,7 @@ impl Map {
                     _ => None,
                 }
             })
+            .map(|d| Edge::new(1, source.clone(), d))
             .collect()
     }
 }
@@ -188,24 +162,30 @@ impl fmt::Display for Map {
 #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
 struct RoboState {
     pos: [Point; 4],
-    active: usize,
+    active: Option<usize>,
     keys: CharSet,
 }
 
 impl RoboState {
+    fn initial(pos: [Point; 4]) -> RoboState {
+        RoboState { pos, active: None, keys: CharSet::create("") }
+    }
+
     fn create(pos: [Point; 4], active: usize, keys: CharSet) -> RoboState {
-        RoboState { pos, active, keys }
+        RoboState { pos, active: Some(active), keys }
     }
 
     fn moved_to(&self, point: Point) -> RoboState {
         let mut pos = self.pos;
-        pos[self.active] = point;
-        RoboState::create(pos, self.active, self.keys)
+        pos[self.active.expect("Must be active")] = point;
+        RoboState::create(pos, self.active.expect("Must be active"), self.keys)
     }
 
     fn found_key(&self, key: char) -> Vec<RoboState> {
         let mut keys = self.keys;
-        keys.insert(key);
+        // not safe to no-op insert here, because we reactivate the other robots only when a _new_
+        // key is found, not when we happen back across an already-found key's location
+        assert!(keys.insert(key));
         (0..self.pos.len())
             .map(|i| RoboState::create(self.pos, i, keys))
             .collect()
@@ -231,51 +211,30 @@ impl RoboMap {
         RoboMap { coords, entrances, keys: map.keys.clone() }
     }
 
-    fn bfs(&self) -> Vec<RoboState> {
-        let mut frontier = VecDeque::new();
-        let mut routes = HashMap::new();
-        for i in 0..4 {
-            let start = RoboState::create(self.entrances, i, CharSet::create(""));
-            frontier.push_back(start.clone());
-            routes.insert(start.clone(), start.clone()); // careful, potential infinite loop
-        }
-
-
+    fn route_len(&self) -> i32 {
         let goal = CharSet::create(&self.keys.keys().collect::<String>());
-        let mut end = None;
-
-        'outer: while let Some(cur) = frontier.pop_front() {
-            for next in self.neighbors(cur) {
-                if !routes.contains_key(&next) {
-                    frontier.push_back(next.clone());
-                    routes.insert(next.clone(), cur.clone());
-                }
-                if next.keys == goal {
-                    end = Some(next);
-                    break 'outer;
-                }
-            }
-        }
-
-        let mut current = end.expect(&format!("No path after {} steps", routes.len())).clone();
-        let mut path = Vec::new();
-        loop {
-            if let Some(next) = routes.get(&current) {
-                path.push(current.clone());
-                // don't compare the starting robot, just the keys and position
-                if current.keys.bits == 0 && current.pos == self.entrances { break; }
-                current = next.clone();
-            } else {
-                panic!();
-            }
-        }
-        path.reverse();
-        path
+        self.bfs(&RoboState::initial(self.entrances), |n| n.keys == goal)
+            .expect("No route").len() as i32 - 2 // 2, start and "initial", see below
     }
+}
 
-    fn neighbors(&self, source: RoboState) -> Vec<RoboState> {
+impl Graph for RoboMap {
+    type Node = RoboState;
+
+    fn neighbors(&self, source: &Self::Node) -> Vec<Edge<Self::Node>> {
+        if source.active.is_none() { // from RoboState::initial()
+            return (0..source.pos.len())
+                .map(|i| RoboState::create(source.pos, i, source.keys))
+                // it would be more correct for these edges to be zero-weight and use dijkstras, but
+                // doing so incurs a significant overhead. Since exactly one of these nodes will
+                // appear at the start any valid path (and nowhere else) it's simple enough to just
+                // exclude the extra node from the result.
+                .map(|d| Edge::new(1, source.clone(), d))
+                .collect();
+        }
+
         [vector(0, 1), vector(1, 0), vector(0, -1), vector(-1, 0)].iter()
-            .map(|v| source.pos[source.active] + v)
+            .map(|v| source.pos[source.active.expect("Must be active")] + v)
             .map(|p| (p, self.coords.get(&p)))
             .filter_map(|(p, t)|
                 match t {
@@ -292,6 +251,7 @@ impl RoboMap {
                     _ => unreachable!(),
                 }
             })
+            .map(|d| Edge::new(1, source.clone(), d))
             .collect()
     }
 }
@@ -343,8 +303,6 @@ impl fmt::Debug for CharSet {
         write!(f, "{{{}}}", out)
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {
@@ -431,7 +389,7 @@ mod tests {
         let map_str = map.to_string().replace(" ", ".").replace("█", "#");
         assert_eq!(map_str, text);
 
-        assert_eq!(map.bfs().len()-1, dist);
+        assert_eq!(map.route_len(), dist);
     }}
     shortest_path!{
         a: (EXAMPLE_1, 8),
@@ -443,8 +401,8 @@ mod tests {
 
     parameterized_test!{ shortest_robo_path, (text, dist), {
         let map = RoboMap::create(&text.parse().unwrap());
-        let path = map.bfs();
-        assert_eq!(map.bfs().len()-1, dist, "Wrong path: {:?}", path);
+
+        assert_eq!(map.route_len(), dist);
     }}
     shortest_robo_path!{
         a: (EXAMPLE_6, 8),
