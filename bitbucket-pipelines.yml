@@ -1,8 +1,0 @@
-image: rust:1.32
-
-pipelines:
-  default:
-    - step:
-        script:
-          - cargo build -v
-          - cargo test -v
