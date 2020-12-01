@@ -1,4 +1,0 @@
-^target/
-glob:*.rs.bk
-glob:advent.iml
-glob:.idea
