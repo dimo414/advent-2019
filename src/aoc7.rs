@@ -29,7 +29,7 @@ fn compute_signal(image: &Machine, sequence: &[i64]) -> i64 {
 
 fn compute_feedback_signal(image: &Machine, sequence: &[i64]) -> i64 {
     let mut machines: Vec<_> = (0..5).map(|_| image.clone()).collect();
-    for i in {0..machines.len()} {
+    for i in 0..machines.len() {
         machines[i].send_input(sequence[i]);
     }
 

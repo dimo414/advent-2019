@@ -29,7 +29,7 @@ fn trace_wire(route: &Vec<Dir>) -> Vec<Point> {
     let mut cur = Point::ORIGIN;
     let mut points = Vec::new();
     for dir in route {
-        for _ in {0..dir.1} {
+        for _ in 0..dir.1 {
             // mutate first, don't include (0, 0)
             cur += dir.0;
             points.push(cur.clone());

@@ -186,8 +186,8 @@ fn compress(s: &str) -> Option<(String, String, String, String)> {
     let parts = s.chars().filter(|&c| c == ',').count() + 1;
 
     // Iterate on the size of A+B, so that we start by looking at short prefixes and suffixes
-    for ab_len in {2..parts} {
-        for a_len in {1..ab_len} {
+    for ab_len in 2..parts {
+        for a_len in 1..ab_len {
             let b_len = ab_len - a_len;
             assert!(b_len > 0);
             let a = nth_comma(s, a_len);

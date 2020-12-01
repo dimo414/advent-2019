@@ -318,7 +318,7 @@ impl fmt::Display for Machine {
             if opcode.is_none() { break; }
             let opcode = opcode.expect("Cannot be none");
             write!(&mut out, "{}", opcode)?;
-            for _ in {0..opcode.parameters()} {
+            for _ in 0..opcode.parameters() {
                 pointer += 1;
                 if self.state.len() <= pointer {
                     write!(&mut out, "\n")?;

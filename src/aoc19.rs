@@ -4,8 +4,8 @@ use std::collections::HashSet;
 
 pub fn advent() {
     let mut traction = HashSet::new();
-    for y in {0..50} {
-        for x in {0..50} {
+    for y in 0..50 {
+        for x in 0..50 {
             let coord = point(x,y);
             if in_traction(coord) {
                 traction.insert(coord);
@@ -50,7 +50,7 @@ fn width_for(y: usize, prior: (usize, usize)) -> (usize, usize) {
     let min_x = min_x.unwrap();
 
     let mut max_x = None;
-    for x in {prior.1-1..} {
+    for x in prior.1-1.. {
         if in_traction(point(x as i32, y as i32)) {
             max_x = Some(x);
         } else if max_x.is_some() { break; }
