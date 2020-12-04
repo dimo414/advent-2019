@@ -159,7 +159,7 @@ impl FromStr for Recipe {
 mod tests {
     use super::*;
 
-    parameterized_test! { encode_name, (name, expected), {
+    parameterized_test::create! { encode_name, (name, expected), {
         assert_eq!(Ingredient::encode_name(name), expected);
     }}
     encode_name! {
@@ -168,7 +168,7 @@ mod tests {
         abcd: ("ABCD", 13121110),
     }
 
-    parameterized_test! { process_recipes, (file, ore_expected, fuel_expected), {
+    parameterized_test::create! { process_recipes, (file, ore_expected, fuel_expected), {
         let recipes = read_data(&format!("data/day14-example{}.txt", file));
         let fuel = Ingredient { id: Ingredient::FUEL, amount: 1 };
         let ore = Ingredient { id: Ingredient::ORE, amount: 1000000000000u64 };

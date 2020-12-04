@@ -241,7 +241,7 @@ mod vector {
             assert_eq!(vector(3, -4).len(), 5_f64);
         }
 
-        parameterized_test!{ grid_lens, (p1, p2, d), {
+        parameterized_test::create!{ grid_lens, (p1, p2, d), {
             assert_eq!((p1 - p2).grid_len(), d);
             assert_eq!((p2 - p1).grid_len(), d);
         }}

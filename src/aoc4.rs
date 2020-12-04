@@ -68,7 +68,7 @@ mod tests {
         assert_eq!(find_passwords(), (1675, 1142));
     }
 
-    parameterized_test! { facts, (n, nd, ta, eta), {
+    parameterized_test::create! { facts, (n, nd, ta, eta), {
         assert_eq!(never_decrease(n), nd);
         assert_eq!(two_adjacent(n), ta);
         assert_eq!(exactly_two_adjacent(n), eta);

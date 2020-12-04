@@ -102,7 +102,7 @@ fn sweep_all(laser: Point, asteroids: &HashSet<Point>) -> Vec<Point> {
 mod tests {
     use super::*;
 
-    parameterized_test!{ reduced_vector, (p1, p2, expected), {
+    parameterized_test::create!{ reduced_vector, (p1, p2, expected), {
         assert_eq!(vector_between(p1, p2), expected);
     }}
     reduced_vector!{
@@ -113,7 +113,7 @@ mod tests {
         e: (point(0, 0), point(-4936, 6170), vector(-4, 5)),
     }
 
-    parameterized_test!{ best_location, (file, count, coord), {
+    parameterized_test::create!{ best_location, (file, count, coord), {
         let coords = read_data(&format!("data/day10-example{}.txt", file));
         assert_eq!(find_best_location(&coords), (count, coord));
     }}
@@ -125,7 +125,7 @@ mod tests {
         e: (5, 210, point(11, 13)),
     }
 
-    parameterized_test!{ vaporize, (file, count, points) ,{
+    parameterized_test::create!{ vaporize, (file, count, points) ,{
         let coords = read_data(&format!("data/day10-example{}.txt", file));
         let max = find_best_location(&coords);
         let swept = sweep_all(max.1, &coords);

@@ -430,7 +430,7 @@ impl Debugger for ExecLogger {
 mod tests {
     use super::*;
 
-    parameterized_test! { state, (program, expected), {
+    parameterized_test::create! { state, (program, expected), {
         let mut machine: Machine = program.parse().expect("Invalid");
         machine.run();
         let expected: Machine = expected.parse().expect("Invalid");
@@ -445,7 +445,7 @@ mod tests {
         d5_negative_num: ("1101,100,-1,4,0", "1101,100,-1,4,99"),
     }
 
-    parameterized_test!{ output, (program, expected), {
+    parameterized_test::create!{ output, (program, expected), {
         let mut machine: Machine = program.parse().unwrap();
         machine.run();
         assert_eq!(machine.read_output(), expected);
@@ -457,7 +457,7 @@ mod tests {
         d9_large_value: ("104,1125899906842624,99", vec!(1125899906842624i64)),
     }
 
-    parameterized_test! { io, (program, input, expected_output), {
+    parameterized_test::create! { io, (program, input, expected_output), {
         let mut machine: Machine = program.parse().expect("Invalid");
         for i in input {
             machine.send_input(i);
@@ -469,7 +469,7 @@ mod tests {
         d5_identity: ("3,0,4,0,99", vec!(10), vec!(10)),
     }
 
-    parameterized_test! { test_input, (program, true_input, false_input), {
+    parameterized_test::create! { test_input, (program, true_input, false_input), {
         let mut machine: Machine = program.parse().expect("Invalid");
         machine.send_input(true_input);
         machine.run();
@@ -489,7 +489,7 @@ mod tests {
         d5_immed_jump: ("3,3,1105,-1,9,1101,0,0,12,4,12,99,1", 5, 0),
     }
 
-    parameterized_test! { display, (input, pointer, expected), {
+    parameterized_test::create! { display, (input, pointer, expected), {
         let mut machine = Machine::new(&input);
         machine.set_pointer(pointer);
         assert_eq!(machine.to_string(), expected);

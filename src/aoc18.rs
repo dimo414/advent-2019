@@ -384,7 +384,7 @@ mod tests {
     #o#m..#i#jk.#\n\
     #############";
 
-    parameterized_test!{ shortest_path, (text, dist), {
+    parameterized_test::create!{ shortest_path, (text, dist), {
         let map: Map = text.parse().unwrap();
         let map_str = map.to_string().replace(" ", ".").replace("█", "#");
         assert_eq!(map_str, text);
@@ -399,7 +399,7 @@ mod tests {
         e: (EXAMPLE_5, 81),
     }
 
-    parameterized_test!{ shortest_robo_path, (text, dist), {
+    parameterized_test::create!{ shortest_robo_path, (text, dist), {
         let map = RoboMap::create(&text.parse().unwrap());
 
         assert_eq!(map.route_len(), dist);
@@ -413,7 +413,7 @@ mod tests {
 
     const TWO: u32 = 2;
 
-    parameterized_test!{ charsets, (letters, expected), {
+    parameterized_test::create!{ charsets, (letters, expected), {
         let mut set = CharSet::create(letters);
         assert_eq!(set.bits, expected);
         for c in letters.chars() {

@@ -152,7 +152,7 @@ mod tests {
         point(9, -8, -3),
     ];
 
-    parameterized_test!{ energy, (points, steps, energy), {
+    parameterized_test::create!{ energy, (points, steps, energy), {
         assert_eq!(simulate(&points, steps), energy);
         let (xs, ys, zs) = cycles(&points);
         assert_eq!(state_at(&xs, &ys, &zs, steps).iter().map(|m|m.energy()).sum::<u32>(), energy);
@@ -163,7 +163,7 @@ mod tests {
         b: (EXAMPLE2, 100, 1940),
     }
 
-    parameterized_test!{ cycle, (points, steps), {
+    parameterized_test::create!{ cycle, (points, steps), {
         let (xs, ys, zs) = cycles(&points);
         assert_eq!(cycle_len(xs, ys, zs), steps);
     }}

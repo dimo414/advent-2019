@@ -87,7 +87,7 @@ mod tests {
     use crate::euclid::point;
     use super::*;
 
-    parameterized_test!{ to_dir, (s, expected), {
+    parameterized_test::create!{ to_dir, (s, expected), {
             assert_eq!(s.parse::<Dir>(), expected);
         }}
     to_dir!{

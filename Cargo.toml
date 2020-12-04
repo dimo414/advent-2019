@@ -8,6 +8,7 @@ edition = "2018"
 lazy_static = "1.4.0"
 mod_exp = "1.0.1"
 num-integer = "0.1.41"
+parameterized_test = "0.1.0"
 permutohedron = "0.2.4"
 regex = "1"
 

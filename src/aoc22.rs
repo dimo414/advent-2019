@@ -209,14 +209,14 @@ impl DeckRepr {
 mod tests {
     use super::*;
 
-    parameterized_test!{ mod_inv, (a, n, inv), {
+    parameterized_test::create!{ mod_inv, (a, n, inv), {
         assert_eq!(modular_inverse(a, n), inv);
     }}
     mod_inv! {
         a: (3, 10, 7),
     }
 
-    parameterized_test!{ parse, (input, expected), {
+    parameterized_test::create!{ parse, (input, expected), {
         let m: Move = input.parse().unwrap();
         assert_eq!(m, expected);
     }}
@@ -226,7 +226,7 @@ mod tests {
         deal: ("deal with increment 7", Move::DEAL(7)),
     }
 
-    parameterized_test!{ shuffle, (moves, expected, exp_repr), {
+    parameterized_test::create!{ shuffle, (moves, expected, exp_repr), {
         let mut deck: Vec<_> = (0..10).collect();
         for m in moves.iter() {
             deck = m.apply(deck);

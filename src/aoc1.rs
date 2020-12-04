@@ -36,7 +36,7 @@ fn full_fuel_required(mass: u32) -> u32 {
 mod tests {
     use super::*;
 
-    parameterized_test!{ base_fuel, (mass, expected), {
+    parameterized_test::create!{ base_fuel, (mass, expected), {
             assert_eq!(base_fuel_required(mass), expected);
         }}
     base_fuel!{
@@ -46,7 +46,7 @@ mod tests {
             m100756: (100756, 33583),
         }
 
-    parameterized_test!{ full_fuel, (mass, expected), {
+    parameterized_test::create!{ full_fuel, (mass, expected), {
             assert_eq!(full_fuel_required(mass), expected);
         }}
     full_fuel! {

@@ -85,7 +85,7 @@ mod tests {
         (0..4*(index+1)).map(|i| pattern_at_index(i, index)).collect()
     }
 
-    parameterized_test!{ patterns, (n, expected), {
+    parameterized_test::create!{ patterns, (n, expected), {
         assert_eq!(pattern_for(n), expected);
     }}
     patterns! {
@@ -107,7 +107,7 @@ mod tests {
         assert_eq!(p4, vec!(0,1,0,2,9,4,9,8));
     }
 
-    parameterized_test!{ phases, (input, expected), {
+    parameterized_test::create!{ phases, (input, expected), {
         let state = to_vec(input);
         let expected = to_vec(expected);
         assert_eq!(fft(&state)[..8], expected[..]);
@@ -118,7 +118,7 @@ mod tests {
         c: ("69317163492948606335995924319873", "52432133"),
     }
 
-    parameterized_test!{ fast_phases, (input, offset, expected), {
+    parameterized_test::create!{ fast_phases, (input, offset, expected), {
         let input = to_vec(input);
         let expected = to_vec(expected);
         assert_eq!(fast_fft(&repeat(&input), offset), expected);

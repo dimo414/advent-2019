@@ -81,7 +81,7 @@ fn find_maximum_feedback_signal(image: &Machine) -> (Vec<i64>, i64) {
 mod tests {
     use super::*;
 
-    parameterized_test!{ signal, (program, max_sequence, max_signal), {
+    parameterized_test::create!{ signal, (program, max_sequence, max_signal), {
         let image: Machine = program.parse().unwrap();
         assert_eq!(compute_signal(&image, &max_sequence), max_signal);
         assert_eq!(find_maximum_signal(&image), (max_sequence, max_signal));
@@ -92,7 +92,7 @@ mod tests {
         c: ("3,31,3,32,1002,32,10,32,1001,31,-2,31,1007,31,0,33,1002,33,7,33,1,33,31,31,1,32,31,31,4,31,99,0,0,0", vec!(1,0,4,3,2), 65210),
     }
 
-    parameterized_test!{ feedback_signal, (program, max_sequence, max_signal), {
+    parameterized_test::create!{ feedback_signal, (program, max_sequence, max_signal), {
         let image: Machine = program.parse().unwrap();
         assert_eq!(compute_feedback_signal(&image, &max_sequence), max_signal);
         assert_eq!(find_maximum_feedback_signal(&image), (max_sequence, max_signal));
