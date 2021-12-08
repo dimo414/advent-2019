@@ -31,7 +31,7 @@ fn partition(input: &str, size: usize) -> Vec<String> {
     ret
 }
 
-fn checksum(layers: &Vec<String>) -> usize {
+fn checksum(layers: &[String]) -> usize {
     let min_zero_layer = layers.iter()
         .min_by_key(|l| l.chars().filter(|&c| c == '0').count())
         .expect("Invalid");
@@ -40,7 +40,7 @@ fn checksum(layers: &Vec<String>) -> usize {
     ones*twos
 }
 
-fn decode_image(layers: &Vec<String>, width: usize, height: usize) -> String {
+fn decode_image(layers: &[String], width: usize, height: usize) -> String {
     // This could be a fold, e.g. `.fold("2".repeat(25*6), merge_layer)`, but it's done as a loop
     // here so the intermediate stages can be printed
     let mut image = "2".repeat(width*height);
@@ -49,7 +49,7 @@ fn decode_image(layers: &Vec<String>, width: usize, height: usize) -> String {
             println!("{}\u{001B}[{}A", render_image(&image, width), height);
             std::thread::sleep(std::time::Duration::from_millis(25));
         }
-        image = merge_layer(image, &layer);
+        image = merge_layer(image, layer);
     }
     image
 }
@@ -60,7 +60,7 @@ fn merge_layer(floor: String, next: &str) -> String {
         let new_pixel = match pixel.0 {
             '0' | '1' => pixel.0,
             '2' => pixel.1,
-            _ => panic!(format!("Unexpected: {:?}", pixel)),
+            _ => panic!("Unexpected: {:?}", pixel),
         };
         ret.push(new_pixel);
     }
@@ -70,7 +70,7 @@ fn merge_layer(floor: String, next: &str) -> String {
 fn render_image(image: &str, width: usize) -> String {
     // Note that █ and ▒ are multi-bit characters, so we can't do any more naive string splitting
     // once they're introduced into the string.
-    partition(&image, width).join("\n")
+    partition(image, width).join("\n")
         .replace("0", " ").replace("1", "█").replace("2", "▒")
 }
 

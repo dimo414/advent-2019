@@ -12,9 +12,9 @@ pub fn advent() {
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 enum Type {
-    WALL,
-    HALL,
-    DEVICE,
+    Wall,
+    Hall,
+    Device,
 }
 
 struct Map {
@@ -26,7 +26,7 @@ struct Map {
 
 impl Map {
     fn explore(mut machine: Machine) -> Map {
-        let mut map = Map { visited: HashMap::new(), pos: Point::ORIGIN, dir: Dir::NORTH, device: None };
+        let mut map = Map { visited: HashMap::new(), pos: Point::ORIGIN, dir: Dir::North, device: None };
 
         loop {
             machine.send_input(map.dir.command());
@@ -35,9 +35,9 @@ impl Map {
             assert_eq!(output.len(), 1);
             match output[0] {
                 0 => {
-                    map.visited.insert(map.pos + map.dir.vector(), Type::WALL);
-                    if let Some(Type::WALL) = map.visited.get(&(map.pos + map.dir.right().vector())) {
-                        if let Some(Type::WALL) = map.visited.get(&(map.pos + map.dir.left().vector())) {
+                    map.visited.insert(map.pos + map.dir.vector(), Type::Wall);
+                    if let Some(Type::Wall) = map.visited.get(&(map.pos + map.dir.right().vector())) {
+                        if let Some(Type::Wall) = map.visited.get(&(map.pos + map.dir.left().vector())) {
                             map.dir = map.dir.left();
                         } else {
                             map.dir = map.dir.flip();
@@ -51,11 +51,11 @@ impl Map {
                     // keep-left
                     map.dir = map.dir.left();
                     let t = match output[0] {
-                        1 => Type::HALL,
-                        2 => Type::DEVICE,
+                        1 => Type::Hall,
+                        2 => Type::Device,
                         _ => panic!(),
                     };
-                    if t == Type::DEVICE {
+                    if t == Type::Device {
                         map.device = Some(map.pos);
                     }
                     map.visited.insert(map.pos, t);
@@ -69,8 +69,8 @@ impl Map {
                 //std::thread::sleep(std::time::Duration::from_millis(5));
             }
             match state {
-                State::INPUT => {},
-                State::HALT => { break; },
+                State::Input => {}
+                State::Halt => { break; }
                 _ => panic!(),
             }
         }
@@ -101,9 +101,9 @@ impl fmt::Display for Map {
                 let coord = point(x, y);
                 use Type::*;
                 let c = match self.visited.get(&coord) {
-                    Some(WALL) => '█',
-                    Some(HALL) => ' ',
-                    Some(DEVICE) => 'X',
+                    Some(Wall) => '█',
+                    Some(Hall) => ' ',
+                    Some(Device) => 'X',
                     None => '░',
                 };
                 let c = if coord == self.pos { '#' } else { c };
@@ -122,58 +122,58 @@ impl Graph for Map {
     fn neighbors(&self, source: &Self::Node) -> Vec<Edge<Self::Node>> {
         vec!(vector(0, 1), vector(1, 0), vector(0, -1), vector(-1, 0)).iter()
             .map(|v| source + v)
-            .filter(|p| self.visited.get(p).unwrap_or(&Type::WALL) != &Type::WALL)
-            .map(|d| Edge::new(1, source.clone(), d.clone()))
+            .filter(|p| self.visited.get(p).unwrap_or(&Type::Wall) != &Type::Wall)
+            .map(|d| Edge::new(1, *source, d))
             .collect()
     }
 }
 
 #[derive(Copy, Clone, Debug)]
 enum Dir {
-    NORTH,
-    SOUTH,
-    WEST,
-    EAST,
+    North,
+    South,
+    West,
+    East,
 }
 
 impl Dir {
     fn command(&self) -> i64 {
         use Dir::*;
         match self {
-            NORTH => 1,
-            SOUTH => 2,
-            WEST => 3,
-            EAST => 4,
+            North => 1,
+            South => 2,
+            West => 3,
+            East => 4,
         }
     }
 
     fn vector(&self) -> Vector {
         use Dir::*;
         match self {
-            NORTH => vector(0, -1),
-            SOUTH => vector(0, 1),
-            WEST => vector(-1, 0),
-            EAST => vector(1, 0),
+            North => vector(0, -1),
+            South => vector(0, 1),
+            West => vector(-1, 0),
+            East => vector(1, 0),
         }
     }
 
     fn right(&self) -> Dir {
         use Dir::*;
         match self {
-            NORTH => EAST,
-            SOUTH => WEST,
-            WEST => NORTH,
-            EAST => SOUTH,
+            North => East,
+            South => West,
+            West => North,
+            East => South,
         }
     }
 
     fn flip(&self) -> Dir {
         use Dir::*;
         match self {
-            NORTH => SOUTH,
-            SOUTH => NORTH,
-            WEST => EAST,
-            EAST => WEST,
+            North => South,
+            South => North,
+            West => East,
+            East => West,
         }
     }
 

@@ -11,8 +11,7 @@ pub fn advent() {
 
 fn read_data() -> Vec<u32> {
     let reader = BufReader::new(File::open("data/day1.txt").expect("Cannot open"));
-
-    return reader.lines().map(|l| l.unwrap().parse::<u32>().unwrap()).collect();
+    reader.lines().map(|l| l.unwrap().parse::<u32>().unwrap()).collect()
 }
 
 fn base_fuel_required(mass: u32) -> u32 {

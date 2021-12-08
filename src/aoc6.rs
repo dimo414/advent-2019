@@ -29,7 +29,7 @@ fn read_data() -> HashMap<String, String> {
 
 fn orbit_checksum(orbit_map: &HashMap<String, String>) -> u32 {
     let mut depth_cache = HashMap::new();
-    let ret = orbit_map.keys().map(|body| orbit_depth(&orbit_map, body, &mut depth_cache)).sum();
+    let ret = orbit_map.keys().map(|body| orbit_depth(orbit_map, body, &mut depth_cache)).sum();
     println!("Cache size: {}", depth_cache.len());
     ret
 }

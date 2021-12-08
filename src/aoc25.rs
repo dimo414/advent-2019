@@ -80,8 +80,8 @@ fn interactive(image: &Machine) {
         println!("\n{}", machine.read_output_ascii());
 
         match state {
-            State::HALT => { break; },
-            State::INPUT => {},
+            State::Halt => { break; }
+            State::Input => {}
             _ => panic!(),
         }
 

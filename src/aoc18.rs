@@ -24,20 +24,20 @@ fn read_data() -> Map {
 
 #[derive(Debug, Copy, Clone)]
 enum Type {
-    WALL,
-    HALL,
-    DOOR(char),
-    KEY(char),
+    Wall,
+    Hall,
+    Door(char),
+    Key(char),
 }
 
 impl Type {
     fn lookup(c: char) -> Type {
         use Type::*;
         match c {
-            '#' => WALL,
-            '.'|'@' => HALL,
-            'A'..='Z' => DOOR(c),
-            'a'..='z' => KEY(c),
+            '#' => Wall,
+            '.'|'@' => Hall,
+            'A'..='Z' => Door(c),
+            'a'..='z' => Key(c),
             _ => panic!(),
         }
     }
@@ -89,13 +89,13 @@ impl Graph for Map {
             .filter_map(|p| {
                 let next = source.moved_to(p);
                 match self.coords.get(&p) {
-                    Some(Type::KEY(k)) =>  Some(next.found_key(*k)),
-                    Some(Type::HALL) => Some(next),
-                    Some(Type::DOOR(d)) => if source.keys.contains(*d) { Some(next) } else { None },
+                    Some(Type::Key(k)) =>  Some(next.found_key(*k)),
+                    Some(Type::Hall) => Some(next),
+                    Some(Type::Door(d)) => if source.keys.contains(*d) { Some(next) } else { None },
                     _ => None,
                 }
             })
-            .map(|d| Edge::new(1, source.clone(), d))
+            .map(|d| Edge::new(1, *source, d))
             .collect()
     }
 }
@@ -117,7 +117,7 @@ impl FromStr for Map {
                         entrance = Some(coord);
                     }
                     let t = Type::lookup(c);
-                    if let Type::KEY(k) = t {
+                    if let Type::Key(k) = t {
                         keys.insert(k, coord);
                     }
                     coords.insert(coord, t);
@@ -143,10 +143,10 @@ impl fmt::Display for Map {
                     out.push('@');
                 } else {
                     let c = match self.coords.get(&coord) {
-                        Some(Type::WALL) => '█',
-                        Some(Type::HALL) => ' ',
-                        Some(Type::DOOR(d)) => *d,
-                        Some(Type::KEY(k)) => *k,
+                        Some(Type::Wall) => '█',
+                        Some(Type::Hall) => ' ',
+                        Some(Type::Door(d)) => *d,
+                        Some(Type::Key(k)) => *k,
                         None => panic!(),
                     };
                     out.push(c);
@@ -203,7 +203,7 @@ impl RoboMap {
     fn create(map: &Map) -> RoboMap {
         let mut coords = map.coords.clone();
         for v in [vector(0, 0), vector(0, 1), vector(1, 0), vector(0, -1), vector(-1, 0)].iter() {
-            coords.insert(map.entrance + v, Type::WALL);
+            coords.insert(map.entrance + v, Type::Wall);
         }
         let e = map.entrance;
         let entrances = [e + vector(-1, -1), e + vector(1, -1), e + vector(-1, 1), e + vector(1, 1)];
@@ -229,7 +229,7 @@ impl Graph for RoboMap {
                 // doing so incurs a significant overhead. Since exactly one of these nodes will
                 // appear at the start any valid path (and nowhere else) it's simple enough to just
                 // exclude the extra node from the result.
-                .map(|d| Edge::new(1, source.clone(), d))
+                .map(|d| Edge::new(1, *source, d))
                 .collect();
         }
 
@@ -238,20 +238,20 @@ impl Graph for RoboMap {
             .map(|p| (p, self.coords.get(&p)))
             .filter_map(|(p, t)|
                 match t {
-                    None|Some(Type::WALL) => None,
+                    None|Some(Type::Wall) => None,
                     Some(t) => Some((p, *t))
                 }
             )
             .flat_map(|(p, t)| {
                 let next = source.moved_to(p);
                 match t {
-                    Type::KEY(k) => if source.keys.contains(k) { vec!(next) } else { next.found_key(k) },
-                    Type::DOOR(d) => if source.keys.contains(d) { vec!(next) } else { vec!() },
-                    Type::HALL => vec!(next),
+                    Type::Key(k) => if source.keys.contains(k) { vec!(next) } else { next.found_key(k) },
+                    Type::Door(d) => if source.keys.contains(d) { vec!(next) } else { vec!() },
+                    Type::Hall => vec!(next),
                     _ => unreachable!(),
                 }
             })
-            .map(|d| Edge::new(1, source.clone(), d))
+            .map(|d| Edge::new(1, *source, d))
             .collect()
     }
 }
@@ -286,7 +286,7 @@ impl CharSet {
 
     fn to_mask(c: char) -> u32 {
         let c = c.to_ascii_uppercase();
-        assert!(c >= 'A' && c <= 'Z');
+        assert!(('A'..='Z').contains(&c));
         let idx = (c as u8 - b'A') as u32;
         1 << idx
     }

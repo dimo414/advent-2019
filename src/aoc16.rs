@@ -25,8 +25,8 @@ fn repeat(sequence: &[u32]) -> Vec<u32> {
 
 fn apply_pattern(input: &[u32], offset: usize, pattern: usize) -> u32 {
     let mut sum = 0;
-    for i in 0..input.len() {
-        sum += input[i] as i32 * pattern_at_index(i+offset, pattern);
+    for (i, &item) in input.iter().enumerate() {
+        sum += item as i32 * pattern_at_index(i+offset, pattern);
     }
     sum.abs() as u32 % 10
 }
@@ -47,7 +47,7 @@ fn phase(input: &[u32], offset: usize) -> Vec<u32> {
 }
 
 fn fft(sequence: &[u32]) -> Vec<u32> {
-    let mut result: Vec<_> = sequence.iter().cloned().collect();
+    let mut result = sequence.to_vec();
     for _ in 0..100 {
         result = phase(&result, 0);
     }

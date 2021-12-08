@@ -24,8 +24,8 @@ fn to_coords(input: &str) -> HashSet<Point> {
         match char {
             '.' => {},
             '\n' => cur_point = point(-1, cur_point.y+1),
-            '#' => { ret.insert(cur_point.clone()); },
-            _ => panic!(format!("Unexpected char: {}", char)),
+            '#' => { ret.insert(cur_point); },
+            _ => panic!("Unexpected char: {}", char),
         }
         cur_point += vector(1, 0);
     }
@@ -55,8 +55,8 @@ fn vectors_for(asteroid: Point, asteroids: &HashSet<Point>) -> HashSet<Vector> {
 
 fn find_best_location(asteroids: &HashSet<Point>) -> (usize, Point) {
     let mut max: Option<(usize, Point)> = None;
-    for asteroid in asteroids.iter() {
-        let visible = vectors_for(*asteroid, &asteroids).len();
+    for asteroid in asteroids {
+        let visible = vectors_for(*asteroid, asteroids).len();
         if max.is_none() || max.unwrap().0 < visible {
             max = Some((visible, *asteroid));
         }

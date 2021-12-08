@@ -26,11 +26,10 @@ pub fn advent() {
 
 fn read_data(file: &str) -> HashMap<u32, Recipe> {
     let reader = BufReader::new(File::open(file).expect("Cannot open"));
-
-    return reader.lines()
+    reader.lines()
         .map(|l| l.unwrap().parse::<Recipe>().unwrap())
         .map(|r| (r.output.id, r))
-        .collect();
+        .collect()
 }
 
 fn resolve(recipes: &HashMap<u32, Recipe>, extras: &mut HashMap<u32, u64>, result: &Ingredient) -> Ingredient {
@@ -66,7 +65,7 @@ fn maximize(recipes: &HashMap<u32, Recipe>, max_input: &Ingredient) -> Ingredien
     loop {
         // TODO this is wrong! we mutate extras even if we throw out the computation
         // can increase the batch size once this is fixed
-        let ore = resolve(&recipes, &mut extras, &Ingredient { id: Ingredient::FUEL, amount: batch_size }).amount as i64;
+        let ore = resolve(recipes, &mut extras, &Ingredient { id: Ingredient::FUEL, amount: batch_size }).amount as i64;
         if ore > ore_left {
             if batch_size > 1 {
                 batch_size /= 10;
@@ -132,7 +131,7 @@ impl FromStr for Ingredient {
         let caps = regex_captures!(RE, s)?;
         let amount: u64 = capture_group!(caps, 1).trim().parse()?;
         let id = Ingredient::encode_name(capture_group!(caps, 2));
-        return Ok(Ingredient { id, amount });
+        Ok(Ingredient { id, amount })
     }
 }
 
@@ -151,7 +150,7 @@ impl FromStr for Recipe {
         let output: Ingredient = halves[1].parse()?;
         let inputs: Result<Vec<Ingredient>, _> = halves[0].split(", ").map(|i| i.parse()).collect();
         let inputs = inputs?;
-        return Ok(Recipe { output, inputs });
+        Ok(Recipe { output, inputs })
     }
 }
 

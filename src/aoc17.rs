@@ -17,7 +17,7 @@ pub fn advent() {
 
     let (comp,a,b,c) = compress(&path).expect("Encoding not found");
 
-    let mut machine = image.clone();
+    let mut machine = image;
     machine.set_state(0, 2);
 
     machine.run().assert_input();
@@ -45,18 +45,18 @@ pub fn advent() {
 
     if debug == 'y' {
         // skip the preceeding whitespace
-        assert_eq!(machine.run_until(|o| o == &['\n' as i64]), State::OUTPUT);
+        assert_eq!(machine.run_until(|o| o == ['\n' as i64]), State::Output);
         assert_eq!(machine.read_output_ascii(), "\n");
 
         let mut display = display;
         loop {
-            match machine.run_until(|o| o.len() >= 2 && &o[o.len()-2..] == &['\n' as i64, '\n' as i64]) {
-                State::OUTPUT => {
+            match machine.run_until(|o| o.len() >= 2 && o[o.len()-2..] == ['\n' as i64, '\n' as i64]) {
+                State::Output => {
                     display = machine.read_output_ascii();
                     let display = &display[..display.len()-1]; // remove the extra trailing newline
                     print!("{}\u{001B}[{}A", display.replace('.', " "), display.chars().filter(|&c| c=='\n').count());
                 },
-                State::HALT => { println!("{}", display.replace('.', " ")); break; },
+                State::Halt => { println!("{}", display.replace('.', " ")); break; }
                 _ => panic!(),
             }
         }
@@ -104,23 +104,19 @@ fn gen_path(start: Point, points: &HashSet<Point>) -> String {
     // TODO this assumes the robot starts facing-up, which may not always be true
     let mut dir = vector(0, -1);
     // TODO this assumes the robot starts facing sideways to the path, which may not always be true
-    loop {
-        if let Some(next) = find_dir(pos, dir, &points) {
-            write!(out, "{},", to_letter(dir, next)).unwrap();
-            dir = next;
-            let mut dist = 0;
-            loop {
-                let next = pos + dir;
-                if points.contains(&next) {
-                    dist += 1;
-                    pos = next;
-                } else {
-                    write!(out, "{},", dist).unwrap();
-                    break;
-                }
+    while let Some(next) = find_dir(pos, dir, points) {
+        write!(out, "{},", to_letter(dir, next)).unwrap();
+        dir = next;
+        let mut dist = 0;
+        loop {
+            let next = pos + dir;
+            if points.contains(&next) {
+                dist += 1;
+                pos = next;
+            } else {
+                write!(out, "{},", dist).unwrap();
+                break;
             }
-        } else {
-            break;
         }
     }
     out.pop();
@@ -210,7 +206,7 @@ fn compress(s: &str) -> Option<(String, String, String, String)> {
     None
 }
 
-fn nth_comma<'a>(s: &'a str, nth: usize) -> &'a str {
+fn nth_comma(s: &str, nth: usize) -> &str {
     let mut commas_seen = 0;
     let pos = s.chars()
         .position(|c| {if c == ',' { commas_seen+=1; if commas_seen == nth { return true; }}; false})
@@ -218,7 +214,7 @@ fn nth_comma<'a>(s: &'a str, nth: usize) -> &'a str {
     &s[..pos]
 }
 
-fn nth_comma_rev<'a>(s: &'a str, nth: usize) -> &'a str {
+fn nth_comma_rev(s: &str, nth: usize) -> &str {
     let mut commas_seen = 0;
     let pos = s.chars().rev()
         .position(|c| {if c == ',' { commas_seen+=1; if commas_seen == nth { return true; }}; false})

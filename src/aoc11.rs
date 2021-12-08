@@ -20,10 +20,10 @@ fn read_data() -> Machine {
 fn paint(paint_origin: bool, bounds_hint: Option<(Point, Point)>) -> HashMap<Point, i64> {
     let mut machine = read_data();
     let mut hull = HashMap::new();
-    let mut dir = Dir::UP;
+    let mut dir = Dir::Up;
     let mut pos = point(0, 0);
     if paint_origin {
-        hull.insert(pos.clone(), 1);
+        hull.insert(pos, 1);
     }
     loop {
         if interactive!() && bounds_hint.is_some() {
@@ -40,8 +40,8 @@ fn paint(paint_origin: bool, bounds_hint: Option<(Point, Point)>) -> HashMap<Poi
         dir = dir.rotate(output[1] == 1);
         pos += dir.vec();
         match state {
-            State::INPUT => {},
-            State::HALT => { break; },
+            State::Input => {}
+            State::Halt => { break; }
             _ => panic!(),
         }
 
@@ -74,26 +74,26 @@ fn render_debug(painted: &HashMap<Point, i64>, bounds: Option<(Point, Point)>) -
 }
 
 #[derive(Copy, Clone)]
-enum Dir { UP, DOWN, LEFT, RIGHT }
+enum Dir { Up, Down, Left, Right }
 
 impl Dir {
     fn rotate(&self, rotate_right: bool) -> Dir {
         use Dir::*;
         match self {
-            UP => { if rotate_right { RIGHT } else { LEFT } },
-            DOWN => { if rotate_right { LEFT } else { RIGHT } },
-            LEFT => { if rotate_right { UP } else { DOWN } },
-            RIGHT => { if rotate_right { DOWN } else { UP } },
+            Up => { if rotate_right { Right } else { Left } },
+            Down => { if rotate_right { Left } else { Right } },
+            Left => { if rotate_right { Up } else { Down } },
+            Right => { if rotate_right { Down } else { Up } },
         }
     }
 
     fn vec(&self) -> Vector {
         use Dir::*;
         match self {
-            UP => vector(0, -1),
-            DOWN => vector(0, 1),
-            LEFT => vector(-1, 0),
-            RIGHT => vector(1, 0),
+            Up => vector(0, -1),
+            Down => vector(0, 1),
+            Left => vector(-1, 0),
+            Right => vector(1, 0),
         }
     }
 }

@@ -19,6 +19,7 @@ pub fn advent() {
 }
 
 type Cycle = Vec<Vec<(i32, i32)>>;
+type CycleSlice = [Vec<(i32, i32)>];
 
 fn cycle_len(xs: Cycle, ys: Cycle, zs: Cycle) -> usize {
     xs.len().lcm(&ys.len()).lcm(&zs.len())
@@ -47,16 +48,16 @@ fn cycle1d(coords: &[i32]) -> Vec<Vec<(i32, i32)>> {
                 coords[j].1 += (ig - jg).signum();
             }
         }
-        for i in 0..coords.len() {
-            let v = coords[i].1;
-            coords[i].0 += v;
+        for coord in &mut coords {
+            let v = coord.1;
+            coord.0 += v;
         }
     }
 
     steps
 }
 
-fn state_at(xs: &Cycle, ys: &Cycle, zs: &Cycle, step: usize) -> Vec<Moon> {
+fn state_at(xs: &CycleSlice, ys: &CycleSlice, zs: &CycleSlice, step: usize) -> Vec<Moon> {
     let xs = xs[step % xs.len()].clone();
     let ys = ys[step % ys.len()].clone();
     let zs = zs[step % zs.len()].clone();

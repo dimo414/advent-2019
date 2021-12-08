@@ -20,35 +20,35 @@ fn read_data() -> (Vec<Dir>,Vec<Dir>) {
 
     let lines: Vec<_> = reader.lines().map(|l| l.unwrap()).collect();
     assert_eq!(lines.len(), 2);
-    let one: Vec<_> = lines[0].trim().split(",").map(|v| v.parse::<Dir>().unwrap()).collect();
-    let two: Vec<_> = lines[1].trim().split(",").map(|v| v.parse::<Dir>().unwrap()).collect();
+    let one: Vec<_> = lines[0].trim().split(',').map(|v| v.parse::<Dir>().unwrap()).collect();
+    let two: Vec<_> = lines[1].trim().split(',').map(|v| v.parse::<Dir>().unwrap()).collect();
     (one, two)
 }
 
-fn trace_wire(route: &Vec<Dir>) -> Vec<Point> {
+fn trace_wire(route: &[Dir]) -> Vec<Point> {
     let mut cur = Point::ORIGIN;
     let mut points = Vec::new();
     for dir in route {
         for _ in 0..dir.1 {
             // mutate first, don't include (0, 0)
             cur += dir.0;
-            points.push(cur.clone());
+            points.push(cur);
         }
     }
     points
 }
 
-fn intersects(one: &Vec<Point>, two: &Vec<Point>) -> HashSet<Point> {
+fn intersects(one: &[Point], two: &[Point]) -> HashSet<Point> {
     let one: HashSet<_> = one.iter().cloned().collect();
     let two: HashSet<_> = two.iter().cloned().collect();
     one.intersection(&two).cloned().collect()
 }
 
-fn nearest_intersection(one: &Vec<Point>, two: &Vec<Point>) -> Option<Point> {
+fn nearest_intersection(one: &[Point], two: &[Point]) -> Option<Point> {
     intersects(one, two).into_iter().min_by_key(|&p| (p - Point::ORIGIN).grid_len())
 }
 
-fn earliest_intersection_steps(one: &Vec<Point>, two: &Vec<Point>) -> Option<usize> {
+fn earliest_intersection_steps(one: &[Point], two: &[Point]) -> Option<usize> {
     let intersects = intersects(one, two);
     intersects.into_iter()
         .map(|p| 2 + // add one for each path, step one is at index zero
@@ -78,7 +78,7 @@ impl FromStr for Dir {
             _ => return Err(ParseError::Malformed(dir.to_string())),
         };
         let magnitude: u32 = capture_group!(caps, 2).parse()?;
-        return Ok(Dir(vector, magnitude));
+        Ok(Dir(vector, magnitude))
     }
 }
 

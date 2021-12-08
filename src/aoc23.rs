@@ -18,7 +18,7 @@ pub fn advent() {
         let mut idle = true;
         for (i, machine) in machines.iter_mut().enumerate() {
             match machine.run_until(|o| o.len() >= 3) {
-                State::OUTPUT => {
+                State::Output => {
                     idle = false;
                     let packet = machine.read_output();
                     assert_eq!(packet.len(), 3);
@@ -35,7 +35,7 @@ pub fn advent() {
                         queue.push_back(packet[2]);
                     }
                 },
-                State::INPUT => {
+                State::Input => {
                     let queue = queues.get_mut(&i).expect("No queue");
                     match queue.pop_front() {
                         Some(x) => {

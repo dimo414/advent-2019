@@ -40,12 +40,12 @@ fn spring(image: &Machine, program: &[&str]) -> Option<i64> {
     machine.run_until(|o| o.len() > 2 && o[o.len()-2..] == [n, n]).assert_output();
     assert_eq!(&machine.read_output_ascii()[5..], "ing...\n\n"); // "[\nWalk]ing" or "[\nRunn]ing"
     match machine.run_until(|o| o.len() > 1) {
-        State::HALT => Some(machine.read_output()[0]),
-        State::OUTPUT => {
+        State::Halt => Some(machine.read_output()[0]),
+        State::Output => {
             machine.run();
             println!("{}", machine.read_output_ascii());
             None
-        },
+        }
         _ => panic!(),
     }
 }

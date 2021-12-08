@@ -38,7 +38,7 @@ fn compute_feedback_signal(image: &Machine, sequence: &[i64]) -> i64 {
         machines[i].send_input(last_output);
         let state = machines[i].run();
         let output = machines[i].read_output();
-        if state == State::HALT && output.is_empty() {
+        if state == State::Halt && output.is_empty() {
             assert_eq!(i, 0); break;
         }
         assert_eq!(output.len(), 1);

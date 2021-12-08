@@ -68,7 +68,7 @@ impl FromStr for Maze {
                     for dir in [vector(1,0), vector(0,1)].iter() {
                         let other = coord + dir;
                         if let Some(c2) = chars.get(&other) {
-                            if c2 >= &'A' && c2 <= &'Z' {
+                            if (&'A'..=&'Z').contains(&c2) {
                                 let key = (*c, *c2);
                                 let source =
                                     if let Some('.') = chars.get(&(other + dir)) { other + dir }
@@ -79,8 +79,8 @@ impl FromStr for Maze {
                                 match labels.entry(key) {
                                     Entry::Occupied(e) => {
                                         let dest = e.remove();
-                                        portals.insert(source.clone(), dest.clone());
-                                        portals.insert(dest.clone(), source.clone());
+                                        portals.insert(source, dest);
+                                        portals.insert(dest, source);
                                     },
                                     Entry::Vacant(e) => {
                                         e.insert(source);
@@ -111,10 +111,10 @@ impl Graph for Maze {
             .filter(|p| self.points.get(p).is_some())
             .collect();
 
-        let portal = self.portals.get(&source);
+        let portal = self.portals.get(source);
 
         direct.iter().chain(portal.iter().cloned())
-            .map(|p| Edge::new(1, source.clone(), p.clone()))
+            .map(|p| Edge::new(1, *source, *p))
             .collect()
     }
 }
@@ -137,18 +137,18 @@ impl<'a> Graph for RecursiveMaze<'a> {
     type Node = (Point, i32);
 
     fn neighbors(&self, source: &Self::Node) -> Vec<Edge<Self::Node>> {
-        if source.1 >= 500 { panic!("No path within 500 layers"); }
-        let direct: Vec<_> = [vector(0, 1), vector(1, 0), vector(0, -1), vector(-1, 0)].iter()
-            .map(|v| source.0 + v)
-            .filter(|p| self.maze.points.get(p).is_some())
-            .map(|p| Edge::new(1, source.clone(), (p.clone(), source.1)))
-            .collect();
+        assert!(source.1 < 500, "No path within 500 layers");
 
         let portal = self.maze.portal(&source.0)
             .filter(|(_, d)| source.1 + *d >= 0)
-            .map(|(dest, depth)| Edge::new(1, source.clone(), (dest, source.1 + depth)));
+            .map(|(dest, depth)| Edge::new(1, *source, (dest, source.1 + depth)));
 
-        direct.into_iter().chain(portal.iter().cloned()).collect()
+        [vector(0, 1), vector(1, 0), vector(0, -1), vector(-1, 0)].iter()
+            .map(|v| source.0 + v)
+            .filter(|p| self.maze.points.get(p).is_some())
+            .map(|p| Edge::new(1, *source, (p, source.1)))
+            .chain(portal.into_iter())
+            .collect()
     }
 }
 

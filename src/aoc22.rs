@@ -38,22 +38,21 @@ pub fn advent() {
 
 fn read_data() -> Vec<Move> {
     let reader = BufReader::new(File::open("data/day22.txt").expect("Cannot open"));
-
-    return reader.lines().map(|l| l.unwrap().parse().unwrap()).collect();
+    reader.lines().map(|l| l.unwrap().parse().unwrap()).collect()
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 enum Move {
-    REVERSE,
-    CUT(isize),
-    DEAL(usize),
+    Reverse,
+    Cut(isize),
+    Deal(usize),
 }
 
 impl Move {
     fn apply(&self, mut deck: Vec<usize>) -> Vec<usize> {
         match self {
-            Move::REVERSE => deck.reverse(),
-            Move::CUT(cut) => {
+            Move::Reverse => deck.reverse(),
+            Move::Cut(cut) => {
                 let n = deck.len() as isize;
                 let cut = (((cut % n) + n) % n) as usize;
                 let mut new_deck = vec![0; deck.len()];
@@ -61,7 +60,7 @@ impl Move {
                 new_deck[..deck.len()-cut].clone_from_slice(&deck[cut..]);
                 return new_deck;
             },
-            Move::DEAL(deal) => {
+            Move::Deal(deal) => {
                 let mut new_deck = vec![0; deck.len()];
                 let mut pos = 0;
                 for n in deck {
@@ -79,12 +78,12 @@ impl Move {
     #[cfg(test)]
     fn undo(&self, index: u64, len: u64) -> u64 {
         match self {
-            Move::REVERSE => len - index - 1,
-            Move::CUT(cut) => {
+            Move::Reverse => len - index - 1,
+            Move::Cut(cut) => {
                 let cut = (((*cut as i64 % len as i64) + len as i64) % len as i64) as u64;
                 (index + cut) % len
             },
-            Move::DEAL(deal) => {
+            Move::Deal(deal) => {
                 // Forward is (index*deal)%len
                 // Not sure how best to go backwards, but we can find the cycle
                 let mut last_index = index;
@@ -100,14 +99,14 @@ impl Move {
     // https://old.reddit.com/r/adventofcode/comments/ee0rqi/2019_day_22_solutions/fbnkaju/
     fn apply_repr(&self, repr: &mut DeckRepr) {
         match self {
-            Move::REVERSE => {
+            Move::Reverse => {
                 repr.increment = repr.mod_mul(repr.increment, -1);
                 repr.offset = repr.mod_add(repr.offset, repr.increment);
             },
-            Move::CUT(c) => {
+            Move::Cut(c) => {
                 repr.offset = repr.mod_add(repr.offset, repr.mod_mul(repr.increment, *c as i64));
             },
-            Move::DEAL(d) => {
+            Move::Deal(d) => {
                 if repr.size == SMALL_SIZE || repr.size == LARGE_SIZE { // known to be prime
                     repr.increment = repr.mod_mul(repr.increment, repr.mod_exp(*d as i64, repr.size - 2));
                 } else {
@@ -119,6 +118,7 @@ impl Move {
 }
 
 // https://en.wikipedia.org/wiki/Extended_Euclidean_algorithm#Computing_multiplicative_inverses_in_modular_structures
+#[allow(clippy::many_single_char_names)]
 fn modular_inverse(a: u64, n: u64) -> u64 {
     let a = a as i64;
     let n = n as i64;
@@ -133,7 +133,7 @@ fn modular_inverse(a: u64, n: u64) -> u64 {
         new_r = r - q * new_r;
         r = next_r;
     }
-    if r > 1 { panic!(format!("{} is not invertible", a)); }
+    if r > 1 { panic!("{} is not invertible", a); }
     ((t + n) % n) as u64
 }
 
@@ -148,12 +148,12 @@ impl FromStr for Move {
 
         let caps: regex::Captures = regex_captures!(RE, s)?;
         if let Some(cut) = caps.get(1) {
-            return Ok(Move::CUT(cut.as_str().parse()?));
+            return Ok(Move::Cut(cut.as_str().parse()?));
         }
         if let Some(deal) = caps.get(2) {
-            return Ok(Move::DEAL(deal.as_str().parse()?));
+            return Ok(Move::Deal(deal.as_str().parse()?));
         }
-        Ok(Move::REVERSE)
+        Ok(Move::Reverse)
     }
 }
 
@@ -221,9 +221,9 @@ mod tests {
         assert_eq!(m, expected);
     }}
     parse! {
-        reverse: ("deal into new stack", Move::REVERSE),
-        cut: ("cut -2", Move::CUT(-2)),
-        deal: ("deal with increment 7", Move::DEAL(7)),
+        reverse: ("deal into new stack", Move::Reverse),
+        cut: ("cut -2", Move::Cut(-2)),
+        deal: ("deal with increment 7", Move::Deal(7)),
     }
 
     parameterized_test::create!{ shuffle, (moves, expected, exp_repr), {
@@ -254,16 +254,16 @@ mod tests {
         assert_eq!((repr.offset, repr.increment), exp_repr);
     }}
     shuffle! {
-        reverse: (vec!(Move::REVERSE), vec!(9,8,7,6,5,4,3,2,1,0), (9, 9)),
-        cut_3: (vec!(Move::CUT(3)), vec!(3,4,5,6,7,8,9,0,1,2), (3, 1)),
-        cut_n4: (vec!(Move::CUT(-4)), vec!(6,7,8,9,0,1,2,3,4,5), (6, 1)),
-        deal_3: (vec!(Move::DEAL(3)), vec!(0,7,4,1,8,5,2,9,6,3), (0, 7)),
-        a: (vec!(Move::DEAL(7), Move::REVERSE, Move::REVERSE), vec!(0,3,6,9,2,5,8,1,4,7), (0, 3)),
-        b: (vec!(Move::CUT(6), Move::DEAL(7), Move::REVERSE), vec!(3,0,7,4,1,8,5,2,9,6), (3, 7)),
-        c: (vec!(Move::DEAL(7), Move::DEAL(9), Move::CUT(-2)), vec!(6,3,0,7,4,1,8,5,2,9), (6, 7)),
+        reverse: (vec!(Move::Reverse), vec!(9,8,7,6,5,4,3,2,1,0), (9, 9)),
+        cut_3: (vec!(Move::Cut(3)), vec!(3,4,5,6,7,8,9,0,1,2), (3, 1)),
+        cut_n4: (vec!(Move::Cut(-4)), vec!(6,7,8,9,0,1,2,3,4,5), (6, 1)),
+        deal_3: (vec!(Move::Deal(3)), vec!(0,7,4,1,8,5,2,9,6,3), (0, 7)),
+        a: (vec!(Move::Deal(7), Move::Reverse, Move::Reverse), vec!(0,3,6,9,2,5,8,1,4,7), (0, 3)),
+        b: (vec!(Move::Cut(6), Move::Deal(7), Move::Reverse), vec!(3,0,7,4,1,8,5,2,9,6), (3, 7)),
+        c: (vec!(Move::Deal(7), Move::Deal(9), Move::Cut(-2)), vec!(6,3,0,7,4,1,8,5,2,9), (6, 7)),
         d: (vec!(
-                Move::REVERSE, Move::CUT(-2), Move::DEAL(7), Move::CUT(8), Move::CUT(-4),
-                Move::DEAL(7), Move::CUT(3), Move::DEAL(9), Move::DEAL(3), Move::CUT(-1)),
+                Move::Reverse, Move::Cut(-2), Move::Deal(7), Move::Cut(8), Move::Cut(-4),
+                Move::Deal(7), Move::Cut(3), Move::Deal(9), Move::Deal(3), Move::Cut(-1)),
             vec!(9,2,5,8,1,4,7,0,3,6), (9, 3)),
     }
 }

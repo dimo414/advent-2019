@@ -9,7 +9,7 @@ pub fn advent() {
     let mut state = State::new();
     machine.run();
     state.update(&machine.read_output());
-    let blocks = state.find_tiles(Tile::BLOCK).len();
+    let blocks = state.find_tiles(Tile::Block).len();
 
     let score = play_game();
     println!("Initial Blocks: {}\nFinal Score: {}", blocks, score);
@@ -31,8 +31,8 @@ fn play_game() -> u32 {
             std::thread::sleep(std::time::Duration::from_millis(5));
         }
         match machine_state {
-            intcode::State::INPUT => {},
-            intcode::State::HALT => { break; },
+            intcode::State::Input => {}
+            intcode::State::Halt => { break; }
             _ => panic!(),
         }
     }
@@ -44,22 +44,22 @@ fn play_game() -> u32 {
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 enum Tile {
-    EMPTY,
-    WALL,
-    BLOCK,
-    PADDLE,
-    BALL,
+    Empty,
+    Wall,
+    Block,
+    Paddle,
+    Ball,
 }
 
 impl Tile {
     fn from_id(id: i64) -> Tile {
         use Tile::*;
         match id {
-            0 => EMPTY,
-            1 => WALL,
-            2 => BLOCK,
-            3 => PADDLE,
-            4 => BALL,
+            0 => Empty,
+            1 => Wall,
+            2 => Block,
+            3 => Paddle,
+            4 => Ball,
             _ => panic!(),
         }
     }
@@ -67,11 +67,11 @@ impl Tile {
     fn char(&self) -> char {
         use Tile::*;
         match self {
-            EMPTY => ' ',
-            WALL => '█',
-            BLOCK => '#',
-            PADDLE => '▔',
-            BALL => 'O',
+            Empty => ' ',
+            Wall => '█',
+            Block => '#',
+            Paddle => '▔',
+            Ball => 'O',
         }
     }
 }
@@ -114,10 +114,10 @@ impl State {
     }
 
     fn find_move(&self) -> i64 {
-        let ball = self.find_tiles(Tile::BALL);
+        let ball = self.find_tiles(Tile::Ball);
         assert_eq!(ball.len(), 1);
         let ball = ball[0];
-        let paddle = self.find_tiles(Tile::PADDLE);
+        let paddle = self.find_tiles(Tile::Paddle);
         assert_eq!(paddle.len(), 1);
         let paddle = paddle[0];
         (ball - paddle).x.signum() as i64
@@ -137,7 +137,7 @@ impl fmt::Display for State {
             out.push('\n');
         }
         write!(f, "{}Step: {:<4}  Blocks Left: {:<3} Score: {:>5}",
-               out, self.steps, self.find_tiles(Tile::BLOCK).len(), self.score)
+               out, self.steps, self.find_tiles(Tile::Block).len(), self.score)
     }
 }
 
@@ -154,7 +154,7 @@ mod tests {
         state.update(&[1,2,3,6,5,4]);
         state.update(&[-1,0,12345]);
         let tiles: HashMap<_, _> =
-            vec!((point(1,2), Tile::PADDLE), (point(6,5), Tile::BALL)).iter().cloned().collect();
+            vec!((point(1,2), Tile::Paddle), (point(6, 5), Tile::Ball)).iter().cloned().collect();
         assert_eq!(state.tiles, tiles);
         assert_eq!(state.score, 12345);
     }

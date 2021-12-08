@@ -4,6 +4,7 @@ use std::str::FromStr;
 use std::collections::{VecDeque, BTreeMap};
 
 #[derive(Clone, Copy, Debug, Ord, PartialOrd, Eq, PartialEq)]
+#[allow(clippy::upper_case_acronyms)]
 pub enum Opcode {
     ADD,
     MUL,
@@ -78,23 +79,23 @@ pub enum Address {
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum State {
-    INPUT,
-    OUTPUT,
-    DEBUG,
-    HALT,
+    Input,
+    Output,
+    Debug,
+    Halt,
 }
 
 impl State {
     pub fn assert_input(&self) {
-        assert_eq!(*self, State::INPUT);
+        assert_eq!(*self, State::Input);
     }
 
     pub fn assert_output(&self) {
-        assert_eq!(*self, State::OUTPUT);
+        assert_eq!(*self, State::Output);
     }
 
     pub fn assert_halt(&self) {
-        assert_eq!(*self, State::HALT);
+        assert_eq!(*self, State::Halt);
     }
 }
 
@@ -169,17 +170,17 @@ impl Machine {
         loop {
             let code = self.state[self.pointer];
             let opcode = Opcode::lookup(code)
-                .expect(&format!("Invalid opcode {} at {}", self.state[self.pointer], self.pointer));
+                .unwrap_or_else(|| panic!("Invalid opcode {} at {}", self.state[self.pointer], self.pointer));
 
-            if opcode == Opcode::INPUT && self.input.is_empty() { return State::INPUT; }
+            if opcode == Opcode::INPUT && self.input.is_empty() { return State::Input; }
 
-            if check_output && output_fn(&self.output) { return State::OUTPUT; }
+            if check_output && output_fn(&self.output) { return State::Output; }
             check_output = opcode == Opcode::OUTPUT;
 
             let params = self.compute_params(opcode, code / 100);
 
             let proceed = debugger.on_exec(opcode, &params, &self.state, self.pointer, self.relative_base);
-            if !proceed { return State::DEBUG; }
+            if !proceed { return State::Debug; }
 
             match opcode {
                 Opcode::ADD => self.add(&params),
@@ -200,7 +201,7 @@ impl Machine {
             self.pointer_moved = false;
         }
         debugger.on_halt(self.pointer);
-        State::HALT
+        State::Halt
     }
 
     fn compute_params(&self, opcode: Opcode, modes_mask: i64) -> Vec<Address> {
@@ -208,12 +209,12 @@ impl Machine {
         let mut modes_mask = modes_mask;
 
         let mut ret = Vec::new();
-        for i in 0..opcode.parameters() {
+        for &param in params.iter().take(opcode.parameters()) {
             let address = match modes_mask % 10 {
-                0 => Address::Reference(params[i] as usize),
-                1 => Address::Immediate(params[i]),
-                2 => Address::Relative(params[i] as isize),
-                _ => panic!(format!("Invalid mode: {}", modes_mask % 10)),
+                0 => Address::Reference(param as usize),
+                1 => Address::Immediate(param),
+                2 => Address::Relative(param as isize),
+                _ => panic!("Invalid mode: {}", modes_mask % 10),
             };
             ret.push(address);
             modes_mask /= 10;
@@ -295,7 +296,7 @@ impl FromStr for Machine {
     type Err = std::num::ParseIntError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let v = s.split(",").map(|n| n.parse::<i64>()).collect::<Result<Vec<i64>, _>>()?;
+        let v = s.split(',').map(|n| n.parse::<i64>()).collect::<Result<Vec<i64>, _>>()?;
         Ok(Machine::new(&v))
     }
 }
@@ -308,7 +309,7 @@ impl fmt::Display for Machine {
             for n in self.state[0..self.pointer-1].iter() {
                 write!(&mut out, "{}\t", n)?
             }
-            write!(&mut out, "{}\n", self.state[self.pointer-1])?;
+            writeln!(&mut out, "{}", self.state[self.pointer-1])?;
         }
 
         let mut pointer = self.pointer;
@@ -321,12 +322,12 @@ impl fmt::Display for Machine {
             for _ in 0..opcode.parameters() {
                 pointer += 1;
                 if self.state.len() <= pointer {
-                    write!(&mut out, "\n")?;
+                    writeln!(&mut out)?;
                     break;
                 }
                 write!(&mut out, "\t{}", self.state[pointer])?;
             }
-            write!(&mut out, "\n")?;
+            writeln!(&mut out)?;
             pointer += 1;
         }
 
@@ -334,7 +335,7 @@ impl fmt::Display for Machine {
             for n in self.state[pointer..self.state.len()-1].iter() {
                 write!(&mut out, "{}\t", n)?
             }
-            write!(&mut out, "{}\n", self.state[self.state.len()-1])?;
+            writeln!(&mut out, "{}", self.state[self.state.len()-1])?;
         }
 
         write!(f, "{}", out)

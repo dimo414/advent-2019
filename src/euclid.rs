@@ -107,7 +107,7 @@ mod point {
             let caps = regex_captures!(RE, s)?;
             let x: i32 = capture_group!(caps, 1).trim().parse()?;
             let y: i32 = capture_group!(caps, 2).trim().parse()?;
-            return Ok(point(x, y));
+            Ok(point(x, y))
         }
     }
 

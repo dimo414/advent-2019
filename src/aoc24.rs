@@ -51,7 +51,7 @@ impl Biosphere {
     }
 
     fn neighbors(points: &HashSet<Point>, point: &Point) -> u32 {
-        *&[vector(-1, 0), vector(1, 0), vector(0, -1), vector(0, 1)].iter()
+        [vector(-1, 0), vector(1, 0), vector(0, -1), vector(0, 1)].iter()
             .filter(|&v| { let p = *point+v; points.contains(&p) })
             .count() as u32
     }
@@ -117,13 +117,13 @@ impl RecBiosphere {
         self.layers.push_back(HashSet::new());
     }
 
-    fn neighbors(layers: &Vec<HashSet<Point>>, layer: usize, p: &Point) -> u32 {
+    fn neighbors(layers: &[HashSet<Point>], layer: usize, p: &Point) -> u32 {
         let p = *p;
-        let same = *&[vector(-1, 0), vector(1, 0), vector(0, -1), vector(0, 1)].iter()
+        let same = [vector(-1, 0), vector(1, 0), vector(0, -1), vector(0, 1)].iter()
             .filter(|&v| { let n = p+v; layers[layer].contains(&n) })
             .count() as u32;
 
-        // TODO these nested and outer calcuations feel inelegant...
+        // TODO these nested and outer calculations feel inelegant...
 
         let nested =
             if layer < layers.len()-1 {
